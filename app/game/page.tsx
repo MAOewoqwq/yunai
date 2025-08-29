@@ -1,0 +1,16 @@
+import dynamic from 'next/dynamic'
+
+const GameScene = dynamic(() => import('@/components/GameScene'), { ssr: false })
+
+export const metadata = {
+  title: '游戏 - Galgame Web',
+}
+
+export default function GamePage() {
+  return (
+    <main className="min-h-screen p-4">
+      <GameScene />
+    </main>
+  )
+}
+

@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, :root {
+  height: 100%;
+}
+
+body {
+  @apply bg-black text-white;
+}
+
+.text-shadow {
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+
