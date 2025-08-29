@@ -4,6 +4,12 @@ import EngineStage from './engine/EngineStage'
 import InventoryShop, { type Item } from './InventoryShop'
 import { inferEmotion } from '@/lib/emotion'
 import { DEFAULT_OPENING_LINES } from '@/lib/prompt'
+import PixelMeter from '@/components/ui/PixelMeter'
+import PixelHeart from '@/components/ui/PixelHeart'
+import PixelAvatarFrame from '@/components/ui/PixelAvatarFrame'
+import PixelButton from '@/components/ui/PixelButton'
+import PixelCurrency from '@/components/ui/PixelCurrency'
+import AssetImageButton from '@/components/ui/AssetImageButton'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -26,6 +32,7 @@ export default function GameScene() {
 
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
+  const [shopBtnSrc, setShopBtnSrc] = useState<string>('')
 
   // 名字展示已固定为：東嘉弥真 御奈
 
@@ -120,6 +127,35 @@ export default function GameScene() {
     updateStage()
     window.addEventListener('resize', updateStage)
     return () => window.removeEventListener('resize', updateStage)
+  }, [])
+
+  // 预加载 HUD 的“背包/商城”图片按钮（本地覆盖优先，否则从 items 取一个匹配的）
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const override = window.localStorage.getItem('shop_button_src')
+        if (override) {
+          setShopBtnSrc(override)
+          return
+        }
+      } catch {}
+      try {
+        const r = await fetch('/api/assets?type=items')
+        if (r.ok) {
+          const j = await r.json()
+          const files: Array<{ url: string; name?: string }> = j.files || []
+          let match = files.find((f) => {
+            const n = (f.name || f.url).toLowerCase()
+            return (
+              n.includes('shop') || n.includes('store') || n.includes('mall') || n.includes('bag') ||
+              n.includes('pack') || n.includes('inventory') || n.includes('背包') || n.includes('商城') || n.includes('商店')
+            )
+          })
+          if (!match) match = files[0]
+          if (match) setShopBtnSrc(match.url)
+        }
+      } catch {}
+    })()
   }, [])
 
   // 当立绘切换时，尝试匹配同角色的头像
@@ -253,6 +289,18 @@ export default function GameScene() {
       if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === target)
       if (candidate) setSpriteUrl(candidate.url)
     }
+    // 送出礼物后的角色视角台词
+    const pool = it.giftLines
+    const fallback: string[] = [
+      `谢谢你的${it.name}，我会记住这份心意。`,
+      '嗯……我很喜欢。今天就到这里吧，再聊聊？',
+      '收下了。你现在看起来有点得意。'
+    ]
+    const lines = Array.isArray(pool) && pool.length ? pool : fallback
+    const idx = Math.floor(Math.random() * lines.length)
+    const text = lines[idx] || lines[0]
+    setDialogue(text)
+    dialogueRef.current = text
   }
 
   return (
@@ -273,27 +321,26 @@ export default function GameScene() {
           offsetPx={Math.round(stageSize.height * 0.45)}
         />
 
-        {/* HUD - 左侧头像 */}
+        {/* HUD - 左侧头像（像素风边框） */}
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">
-          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-white/10 overflow-hidden border border-white/20">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-            ) : (
-              <div className="h-full w-full bg-gradient-to-br from-white/10 to-white/5" />
-            )}
-          </div>
+          <PixelAvatarFrame src={avatarUrl} className="h-12 w-12 sm:h-14 sm:w-14" />
         </div>
         {/* HUD - 右侧：好感度 + 商城/背包/金币 */}
         <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col items-end gap-2 sm:gap-3">
           <div className="w-32 sm:w-48">
-            <div className="text-[11px] sm:text-xs mb-1 text-white/80">好感度</div>
-            <div className="h-2 w-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-pink-500" style={{ width: `${affection}%` }} />
+            <div className="flex items-center gap-1 text-[11px] sm:text-xs mb-1 text-white/80">
+              <span>好感度</span>
+              <PixelHeart size={2} color="#F7C3F4" />
             </div>
+            <PixelMeter value={affection} height={10} />
           </div>
           <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <div className="px-2 py-1 border bg-white/10">🪙 {coins}</div>
-            <button className="px-2 py-1 border bg-white/10 hover:bg-white/20" onClick={() => setShopOpen(true)}>背包/商城</button>
+            <PixelCurrency amount={coins} />
+            {shopBtnSrc ? (
+              <AssetImageButton src={shopBtnSrc} onClick={() => setShopOpen(true)} />
+            ) : (
+              <PixelButton size="md" onClick={() => setShopOpen(true)}>背包/商城</PixelButton>
+            )}
           </div>
         </div>
 
