@@ -12,6 +12,13 @@ type PixelAudioBarProps = {
   initialVolume?: number // 0..1
   className?: string
   size?: 'sm' | 'md'
+  // 是否可折叠：单击音符展开为播放条，再次单击收起
+  collapsible?: boolean
+  // 初始是否收起（仅在 collapsible=true 时生效）
+  initialCollapsed?: boolean
+  // 折叠/收起按钮的自定义图标（占位用，可自行替换图片）
+  iconSrc?: string
+  iconAlt?: string
 }
 
 export default function PixelAudioBar({
@@ -22,12 +29,17 @@ export default function PixelAudioBar({
   initialVolume = 1,
   className,
   size = 'sm',
+  collapsible = false,
+  initialCollapsed = true,
+  iconSrc,
+  iconAlt = 'music icon',
 }: PixelAudioBarProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [duration, setDuration] = useState<number>(0)
   const [current, setCurrent] = useState<number>(0)
   const [canPlay, setCanPlay] = useState<boolean>(false)
+  const [collapsed, setCollapsed] = useState<boolean>(collapsible ? initialCollapsed : false)
 
   // derived
   const pct = useMemo(() => (duration > 0 ? (current / duration) * 100 : 0), [current, duration])
@@ -100,6 +112,32 @@ export default function PixelAudioBar({
   const meterSeg = size === 'md' ? 32 : 28
   const titleCls = size === 'md' ? 'text-xs mb-1' : 'text-[11px] mb-0.5'
   const timeCls = size === 'md' ? 'text-[11px]' : 'text-[10px]'
+  // 调整：图标填充按钮容器；按钮边框更细、无内边距并固定尺寸
+  const thinBorderCls = 'border-[0.5px]'
+  const toggleBtnSizeCls = size === 'md' ? 'w-8 h-8' : 'w-7 h-7'
+  const toggleBtnOverride = ['p-0', 'overflow-hidden', 'relative', thinBorderCls, toggleBtnSizeCls].join(' ')
+
+  if (collapsible && collapsed) {
+    // 收起状态：仅显示一个音符按钮，点击后展开
+    return (
+      <div className={className}>
+        <PixelButton
+          size={btnSize as any}
+          variant="primary"
+          aria-label="展开音乐播放条"
+          onClick={() => setCollapsed(false)}
+          className={toggleBtnOverride}
+        >
+          {iconSrc ? (
+            // 占位图标：可通过传入 iconSrc 自行替换
+            <img src={iconSrc} alt={iconAlt} className={["absolute", "inset-0", "w-full", "h-full", 'object-cover', 'block', 'pointer-events-none'].join(' ')} />
+          ) : (
+            '♪'
+          )}
+        </PixelButton>
+      </div>
+    )
+  }
 
   return (
     <PixelPanel className={["flex items-center", gapCls, padCls, className || ''].join(' ')}>
@@ -115,6 +153,20 @@ export default function PixelAudioBar({
           {fmt(current)} / {fmt(duration)}
         </div>
       </div>
+      {collapsible && (
+        <PixelButton
+          size={btnSize as any}
+          className={["ml-1", toggleBtnOverride].join(' ')}
+          aria-label="收起音乐播放条"
+          onClick={() => setCollapsed(true)}
+        >
+          {iconSrc ? (
+            <img src={iconSrc} alt={iconAlt} className={["absolute", "inset-0", "w-full", "h-full", 'object-cover', 'block', 'pointer-events-none'].join(' ')} />
+          ) : (
+            '♪'
+          )}
+        </PixelButton>
+      )}
       {/* playback is controlled via an off-DOM HTMLAudioElement held in ref */}
     </PixelPanel>
   )

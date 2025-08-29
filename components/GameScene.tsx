@@ -344,9 +344,22 @@ export default function GameScene() {
           offsetPx={Math.round(stageSize.height * 0.45)}
         />
 
-        {/* HUD - 左侧头像（像素风边框） */}
-        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">
+        {/* HUD - 左侧头像（像素风边框） + 收起时的音乐控件（置于头像下侧） */}
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col items-start gap-2">
           <PixelAvatarFrame src={avatarUrl} className="h-12 w-12 sm:h-14 sm:w-14" />
+          {/* 收起后的音乐组件位于头像下侧，展开后在此处展开 */}
+          <div className="w-[220px] sm:w-[260px]" style={{ transform: 'translateX(3%)' }}>
+            <PixelAudioBar
+              src="/audio/theme.mp3"
+              title="背景音乐"
+              loop
+              initialVolume={0.6}
+              collapsible
+              initialCollapsed
+              // 使用你的音符图标
+              iconSrc="/uploads/avatars/music.png"
+            />
+          </div>
         </div>
         {/* HUD - 右侧：好感度 + 商城/背包/金币 */}
         <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col items-end gap-2 sm:gap-3">
@@ -374,10 +387,7 @@ export default function GameScene() {
           </div>
         </div>
 
-        {/* 顶部中部：音乐播放条 */}
-        <div className="absolute left-1/2 top-12 sm:top-14 w-1/2 max-w-[280px]" style={{ transform: 'translate(-60%, -20%)' }}>
-          <PixelAudioBar src="/audio/theme.mp3" title="背景音乐" loop initialVolume={0.6} />
-        </div>
+        {/* 顶部中部音乐播放条已移除，改为头像下方位置（见上） */}
 
         {/* 对话框 */}
         <div
