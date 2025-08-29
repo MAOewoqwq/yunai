@@ -9,10 +9,7 @@ type Props = {
 function BasicStage({ bgUrl, spriteUrl }: Props) {
   return (
     <>
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}
-      />
+      {/* 仅渲染立绘，背景由外层全屏层统一处理，避免割裂 */}
       <div className="absolute inset-0 pointer-events-none">
         {spriteUrl && (
           <img
@@ -54,12 +51,7 @@ function NarraLeafStage({ bgUrl, spriteUrl }: Props) {
   }
 
   // 背景与立绘变更时，同步到 NarraLeaf
-  useEffect(() => {
-    const scene = sceneRef.current
-    if (scene && bgUrl) {
-      try { scene.setBackground(bgUrl) } catch {}
-    }
-  }, [bgUrl])
+  // 不在 NarraLeaf 内部设置背景，使用外层全屏背景，避免舞台与外层不一致导致割裂
 
   useEffect(() => {
     const sprite = spriteRef.current
@@ -73,9 +65,6 @@ function NarraLeafStage({ bgUrl, spriteUrl }: Props) {
     ctxRef.current = ctx
     const scene = sceneRef.current
     const sprite = spriteRef.current
-    if (scene && bgUrl) {
-      try { scene.setBackground(bgUrl) } catch {}
-    }
     if (scene && sprite && !spriteCreatedRef.current) {
       try {
         ctx.gameState.createImage(sprite, scene)
