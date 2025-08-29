@@ -10,6 +10,7 @@ import PixelAvatarFrame from '@/components/ui/PixelAvatarFrame'
 import PixelButton from '@/components/ui/PixelButton'
 import PixelCurrency from '@/components/ui/PixelCurrency'
 import AssetImageButton from '@/components/ui/AssetImageButton'
+import Album from '@/components/Album'
 import PixelAudioBar from '@/components/ui/PixelAudioBar'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
@@ -26,6 +27,7 @@ export default function GameScene() {
   const [coins, setCoins] = useState<number>(100)
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [shopOpen, setShopOpen] = useState<boolean>(false)
+  const [albumOpen, setAlbumOpen] = useState<boolean>(false)
 
   const [sprites, setSprites] = useState<Array<{ url: string; char?: string; emotion?: string }>>([])
   const [backgrounds, setBackgrounds] = useState<Array<{ url: string; name?: string }>>([])
@@ -34,6 +36,7 @@ export default function GameScene() {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
   const [shopBtnSrc, setShopBtnSrc] = useState<string>('')
+  const [albumBtnSrc, setAlbumBtnSrc] = useState<string>('')
   // 好感度飘字动画用的临时状态
   const [affectionGain, setAffectionGain] = useState<number | null>(null)
   const affectionAnimTimer = useRef<number | null>(null)
@@ -146,10 +149,11 @@ export default function GameScene() {
     ;(async () => {
       try {
         const override = window.localStorage.getItem('shop_button_src')
-        if (override) {
-          setShopBtnSrc(override)
-          return
-        }
+        if (override) setShopBtnSrc(override)
+      } catch {}
+      try {
+        const override = window.localStorage.getItem('album_button_src')
+        if (override) setAlbumBtnSrc(override)
       } catch {}
       try {
         const r = await fetch('/api/assets?type=items')
@@ -165,6 +169,12 @@ export default function GameScene() {
           })
           if (!match) match = files[0]
           if (match) setShopBtnSrc(match.url)
+          // Try find an album-like icon as well
+          let albumMatch = files.find((f) => {
+            const n = (f.name || f.url).toLowerCase()
+            return n.includes('album') || n.includes('photo') || n.includes('相册') || n.includes('照片')
+          })
+          if (albumMatch) setAlbumBtnSrc(albumMatch.url)
         }
       } catch {}
     })()
@@ -350,7 +360,7 @@ export default function GameScene() {
           {/* 收起后的音乐组件位于头像下侧，展开后在此处展开 */}
           <div className="w-[220px] sm:w-[260px]" style={{ transform: 'translateX(3%)' }}>
             <PixelAudioBar
-              src="/audio/theme.mp3"
+              src="/audio/jazzmusic.mp3"
               title="背景音乐"
               loop
               initialVolume={0.6}
@@ -379,6 +389,11 @@ export default function GameScene() {
           </div>
           <div className="flex items-center gap-2 text-xs sm:text-sm">
             <PixelCurrency amount={coins} />
+            {albumBtnSrc ? (
+              <AssetImageButton className="transform scale-[1.02]" src={albumBtnSrc} onClick={() => setAlbumOpen(true)} />
+            ) : (
+              <PixelButton className="transform scale-[1.02]" size="md" onClick={() => setAlbumOpen(true)}>相册</PixelButton>
+            )}
             {shopBtnSrc ? (
               <AssetImageButton src={shopBtnSrc} onClick={() => setShopOpen(true)} />
             ) : (
@@ -409,6 +424,10 @@ export default function GameScene() {
             </div>
           </div>
         </div>
+
+        {albumOpen && (
+          <Album onClose={() => setAlbumOpen(false)} />
+        )}
 
         {shopOpen && (
           <InventoryShop

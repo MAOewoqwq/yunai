@@ -2,31 +2,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import PixelPanel from '@/components/ui/PixelPanel'
 
-type Asset = { url: string; name?: string; type: 'bg' | 'sprites' | 'avatars' | 'items'; char?: string; emotion?: string }
+type Asset = { url: string; name?: string; type: 'bg' | 'sprites' | 'avatars' | 'items' | 'photos'; char?: string; emotion?: string }
 
 export default function AdminAssetsPage() {
   const [bgList, setBgList] = useState<Asset[]>([])
   const [avatarList, setAvatarList] = useState<Asset[]>([])
   const [spriteList, setSpriteList] = useState<Asset[]>([])
+  const [photoList, setPhotoList] = useState<Asset[]>([])
   const [itemList, setItemList] = useState<Asset[]>([])
   const [spriteChar, setSpriteChar] = useState<string>('')
   const bgInputRef = useRef<HTMLInputElement | null>(null)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const spriteInputRef = useRef<HTMLInputElement | null>(null)
   const itemInputRef = useRef<HTMLInputElement | null>(null)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   async function refreshAll() {
     try {
-      const [bg, av, sp, it] = await Promise.all([
+      const [bg, av, sp, it, ph] = await Promise.all([
         fetch('/api/assets?type=bg').then((r) => r.json()).catch(() => ({ files: [] })),
         fetch('/api/assets?type=avatars').then((r) => r.json()).catch(() => ({ files: [] })),
         fetch('/api/assets?type=sprites').then((r) => r.json()).catch(() => ({ files: [] })),
         fetch('/api/assets?type=items').then((r) => r.json()).catch(() => ({ files: [] })),
+        fetch('/api/assets?type=photos').then((r) => r.json()).catch(() => ({ files: [] })),
       ])
       setBgList(bg.files || [])
       setAvatarList(av.files || [])
       setSpriteList(sp.files || [])
       setItemList(it.files || [])
+      setPhotoList(ph.files || [])
     } catch {}
   }
 
@@ -34,12 +38,13 @@ export default function AdminAssetsPage() {
     refreshAll()
   }, [])
 
-  async function upload(type: 'bg' | 'avatars' | 'sprites' | 'items') {
+  async function upload(type: 'bg' | 'avatars' | 'sprites' | 'items' | 'photos') {
     let input: HTMLInputElement | null = null
     if (type === 'bg') input = bgInputRef.current
     else if (type === 'avatars') input = avatarInputRef.current
     else if (type === 'sprites') input = spriteInputRef.current
-    else input = itemInputRef.current
+    else if (type === 'items') input = itemInputRef.current
+    else input = photoInputRef.current
     if (!input || !input.files || input.files.length === 0) return
     const fd = new FormData()
     fd.set('type', type)
@@ -151,6 +156,28 @@ export default function AdminAssetsPage() {
             ))}
             {itemList.length === 0 && (
               <div className="col-span-full text-white/60 text-sm">暂无物品图标，请上传。</div>
+            )}
+          </div>
+        </PixelPanel>
+
+        <PixelPanel className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-lg">相册（photos）</div>
+            <div className="flex items-center gap-2">
+              <input ref={photoInputRef} type="file" multiple accept="image/*" />
+              <button className="px-3 py-1 border hover:bg-white/10" onClick={() => upload('photos')}>上传</button>
+            </div>
+          </div>
+          <div className="text-xs text-white/60 mb-2">支持 `public/uploads/photos/`。文件名会作为相片名称显示。</div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {photoList.map((a) => (
+              <div key={a.url} className="border border-white/15 bg-white/5">
+                <img src={a.url} alt={a.name || 'photo'} className="w-full h-24 object-cover" />
+                <div className="text-[10px] p-1 truncate">{a.name}</div>
+              </div>
+            ))}
+            {photoList.length === 0 && (
+              <div className="col-span-full text-white/60 text-sm">暂无相片，请上传。</div>
             )}
           </div>
         </PixelPanel>

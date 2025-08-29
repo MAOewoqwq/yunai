@@ -4,7 +4,7 @@ import { readdirSync } from 'node:fs'
 
 export const runtime = 'nodejs'
 
-type AssetType = 'bg' | 'sprites' | 'avatars' | 'items'
+type AssetType = 'bg' | 'sprites' | 'avatars' | 'items' | 'photos'
 
 function isImage(name: string) {
   const ext = extname(name).toLowerCase()
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   try {
     const result: any[] = []
 
-    if (type === 'bg' || type === 'avatars' || type === 'items') {
+    if (type === 'bg' || type === 'avatars' || type === 'items' || type === 'photos') {
       const files = readdirSync(target, { withFileTypes: true })
       for (const f of files) {
         if (!f.isFile()) continue

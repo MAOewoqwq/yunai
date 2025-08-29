@@ -9,8 +9,10 @@ export async function POST(req: Request) {
   // optional fields controlling destination
   const rawType = String(form.get('type') || '').trim().toLowerCase()
   const rawChar = String(form.get('char') || '').trim()
-  const type: 'bg' | 'sprites' | 'avatars' | 'items' | '' =
-    rawType === 'bg' || rawType === 'sprites' || rawType === 'avatars' || rawType === 'items' ? (rawType as any) : ''
+  const type: 'bg' | 'sprites' | 'avatars' | 'items' | 'photos' | '' =
+    rawType === 'bg' || rawType === 'sprites' || rawType === 'avatars' || rawType === 'items' || rawType === 'photos'
+      ? (rawType as any)
+      : ''
   const charId = rawChar ? rawChar.replace(/[^\w\-]+/g, '_') : ''
 
   const files: File[] = []
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
   else if (type === 'avatars') dir = join(env.UPLOAD_DIR, 'avatars')
   else if (type === 'sprites') dir = charId ? join(env.UPLOAD_DIR, 'sprites', charId) : join(env.UPLOAD_DIR, 'sprites')
   else if (type === 'items') dir = join(env.UPLOAD_DIR, 'items')
+  else if (type === 'photos') dir = join(env.UPLOAD_DIR, 'photos')
 
   try { mkdirSync(dir, { recursive: true }) } catch {}
 
@@ -40,6 +43,7 @@ export async function POST(req: Request) {
     else if (type === 'avatars') publicUrl = `/uploads/avatars/${safeName}`
     else if (type === 'sprites') publicUrl = charId ? `/uploads/sprites/${charId}/${safeName}` : `/uploads/sprites/${safeName}`
     else if (type === 'items') publicUrl = `/uploads/items/${safeName}`
+    else if (type === 'photos') publicUrl = `/uploads/photos/${safeName}`
     results.push({ name: safeName, url: publicUrl, size: buf.length })
   }
 
