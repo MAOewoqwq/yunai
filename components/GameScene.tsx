@@ -1,6 +1,8 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
 import EngineStage from './engine/EngineStage'
+import InventoryShop, { type Item } from './InventoryShop'
+import { inferEmotion } from '@/lib/emotion'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -11,6 +13,9 @@ export default function GameScene() {
   const [dialogue, setDialogue] = useState<string>('你好，我是测试角色。')
   const [input, setInput] = useState<string>('')
   const [affection, setAffection] = useState<number>(0)
+  const [coins, setCoins] = useState<number>(100)
+  const [inventory, setInventory] = useState<Record<string, number>>({})
+  const [shopOpen, setShopOpen] = useState<boolean>(false)
 
   const [sprites, setSprites] = useState<Array<{ url: string; char?: string; emotion?: string }>>([])
   const [backgrounds, setBackgrounds] = useState<Array<{ url: string; name?: string }>>([])
@@ -18,6 +23,27 @@ export default function GameScene() {
 
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
+
+  // 名字展示已固定为：東嘉弥真 御奈
+
+  // 本地持久化：金币、背包、好感度
+  useEffect(() => {
+    try {
+      const s = window.localStorage.getItem('game_state')
+      if (s) {
+        const j = JSON.parse(s)
+        if (typeof j.coins === 'number') setCoins(j.coins)
+        if (j.inventory && typeof j.inventory === 'object') setInventory(j.inventory)
+        if (typeof j.affection === 'number') setAffection(j.affection)
+      }
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      const payload = JSON.stringify({ coins, inventory, affection })
+      window.localStorage.setItem('game_state', payload)
+    } catch {}
+  }, [coins, inventory, affection])
 
   useEffect(() => {
     // 启动时加载本地上传的资源
@@ -46,19 +72,12 @@ export default function GameScene() {
       }
     })()
 
-    // 计算舞台尺寸（16:9 自适应，随窗口变化）
+    // 计算舞台尺寸（改为占满父容器 / 全屏）
     const updateStage = () => {
-      const targetRatio = 16 / 9
       const wrap = wrapperRef.current
       const w = wrap?.clientWidth ?? window.innerWidth
       const h = wrap?.clientHeight ?? window.innerHeight
-      let width = w
-      let height = Math.round(width / targetRatio)
-      if (height > h) {
-        height = h
-        width = Math.round(height * targetRatio)
-      }
-      setStageSize({ width, height })
+      setStageSize({ width: w, height: h })
     }
     updateStage()
     window.addEventListener('resize', updateStage)
@@ -77,6 +96,18 @@ export default function GameScene() {
 
   async function sendMessage() {
     setDialogue('')
+    // 简单关键词推断情绪并尝试切换立绘
+    try {
+      const hint = inferEmotion(input, affection)
+      if (hint && sprites.length > 0) {
+        const cur = sprites.find((s) => s.url === spriteUrl)
+        let candidate = sprites.find(
+          (s) => s.emotion?.toLowerCase() === hint && s.char && cur?.char && s.char === cur.char,
+        )
+        if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === hint)
+        if (candidate) setSpriteUrl(candidate.url)
+      }
+    } catch {}
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,20 +151,32 @@ export default function GameScene() {
     setInput('')
   }
 
+  function onUseItem(it: Item) {
+    if (typeof it.affectionDelta === 'number') {
+      setAffection((a) => Math.max(0, Math.min(100, a + it.affectionDelta!)))
+    }
+    if (it.emotion) {
+      const target = it.emotion.toLowerCase()
+      const cur = sprites.find((s) => s.url === spriteUrl)
+      let candidate = sprites.find(
+        (s) => s.emotion?.toLowerCase() === target && s.char && cur?.char && s.char === cur.char,
+      )
+      if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === target)
+      if (candidate) setSpriteUrl(candidate.url)
+    }
+  }
+
   return (
     <div ref={wrapperRef} className="relative w-full h-[100dvh] flex items-center justify-center">
       {/* 全屏铺满的背景（随窗口缩放覆盖）*/}
       <div
-        className="absolute inset-0 -z-10 bg-center bg-cover"
+        className="absolute inset-0 -z-10 bg-center bg-cover pixelated"
         style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}
       />
       {/* 背景叠加一层轻微遮罩以提升文本可读性（更浅，避免看起来像黑边） */}
       <div className="absolute inset-0 -z-10 bg-black/10 sm:bg-black/20" />
 
-      <div
-        className="relative overflow-hidden"
-        style={{ width: stageSize.width, height: stageSize.height }}
-      >
+      <div className="absolute inset-0 overflow-hidden">
         <EngineStage
           bgUrl={bgUrl}
           spriteUrl={spriteUrl}
@@ -141,7 +184,7 @@ export default function GameScene() {
           offsetPx={Math.round(stageSize.height * 0.45)}
         />
 
-        {/* HUD - 头像与好感度 */}
+        {/* HUD - 左侧头像 */}
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">
           <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-white/10 overflow-hidden border border-white/20">
             {avatarUrl ? (
@@ -151,10 +194,17 @@ export default function GameScene() {
             )}
           </div>
         </div>
-        <div className="absolute top-2 right-2 w-28 sm:top-3 sm:right-3 sm:w-40">
-          <div className="text-[11px] sm:text-xs mb-1 text-white/80">好感度</div>
-          <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
-            <div className="h-full bg-pink-500" style={{ width: `${affection}%` }} />
+        {/* HUD - 右侧：好感度 + 商城/背包/金币 */}
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex flex-col items-end gap-2 sm:gap-3">
+          <div className="w-32 sm:w-48">
+            <div className="text-[11px] sm:text-xs mb-1 text-white/80">好感度</div>
+            <div className="h-2 w-full bg-white/10 overflow-hidden">
+              <div className="h-full bg-pink-500" style={{ width: `${affection}%` }} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <div className="px-2 py-1 border bg-white/10">🪙 {coins}</div>
+            <button className="px-2 py-1 border bg-white/10 hover:bg-white/20" onClick={() => setShopOpen(true)}>背包/商城</button>
           </div>
         </div>
 
@@ -163,9 +213,9 @@ export default function GameScene() {
           className="absolute bottom-0 left-0 right-0 p-3 sm:p-4"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}
         >
-          <div className="rounded-xl border border-dialogue-border bg-dialogue-bg backdrop-blur px-3 py-2 sm:px-4 sm:py-3">
-            <div className="mb-1 sm:mb-2 text-xs sm:text-sm text-white/70">角色A</div>
-            <div className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg leading-relaxed text-shadow">{dialogue}</div>
+          <div className="rounded-none border border-dialogue-border bg-dialogue-bg backdrop-blur px-3 py-2 sm:px-4 sm:py-3">
+            <div className="mb-1 sm:mb-2 text-xs sm:text-sm text-white/70">東嘉弥真 御奈</div>
+            <div className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg leading-relaxed text-shadow typewriter">{dialogue}</div>
             <div className="mt-2 sm:mt-3 flex gap-2">
               <input
                 value={input}
@@ -178,6 +228,17 @@ export default function GameScene() {
             </div>
           </div>
         </div>
+
+        {shopOpen && (
+          <InventoryShop
+            coins={coins}
+            inventory={inventory}
+            onClose={() => setShopOpen(false)}
+            onCoinsChange={setCoins}
+            onInventoryChange={setInventory}
+            onUseItem={onUseItem}
+          />
+        )}
       </div>
     </div>
   )

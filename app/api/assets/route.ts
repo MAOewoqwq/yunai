@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { join, extname, basename } from 'node:path'
-import { readdirSync, statSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 
 export const runtime = 'nodejs'
 
@@ -54,12 +54,24 @@ export async function GET(req: NextRequest) {
             })
           }
         } else if (it.isFile()) {
-          // flat: character inferred from filename before first '-'
+          // flat: character inferred from filename. Support separators: '-', '_', or space
           if (!isImage(it.name)) continue
-          const baseName = basename(it.name, extname(it.name))
-          const [charId, emotion] = baseName.includes('-')
-            ? baseName.split('-', 2)
-            : ['default', baseName]
+          const baseNameRaw = basename(it.name, extname(it.name))
+          const norm = baseNameRaw.trim()
+          // Try to split into [charId, emotion]
+          let charId = 'default'
+          let emotion = norm
+          const trySplitters = ['-', '_', ' ']
+          for (const sep of trySplitters) {
+            if (norm.includes(sep)) {
+              const parts = norm.split(sep).filter(Boolean)
+              if (parts.length >= 2) {
+                charId = parts[0]
+                emotion = parts.slice(1).join(' ')
+                break
+              }
+            }
+          }
           if (charFilter && charFilter !== charId) continue
           result.push({
             url: `/uploads/sprites/${it.name}`,
@@ -77,4 +89,3 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: e?.message || 'Read assets failed' }), { status: 500 })
   }
 }
-

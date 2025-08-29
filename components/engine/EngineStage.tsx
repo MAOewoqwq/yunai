@@ -44,7 +44,7 @@ function BasicStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
           <img
             src={spriteUrl}
             alt="sprite"
-            className="absolute bottom-0 left-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
+            className="absolute bottom-0 left-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)] pixelated"
             style={{
               // 立绘下移 10% 已由父级 offsetPx 传入；这里额外将缩放放大 10%
               transform: `translateX(-50%) translateY(${(yoff + offsetPx)}px) scale(${scale * 1.1})`,
