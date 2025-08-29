@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import EngineStage from './engine/EngineStage'
 import InventoryShop, { type Item } from './InventoryShop'
 import { inferEmotion } from '@/lib/emotion'
+import { DEFAULT_OPENING_LINES } from '@/lib/prompt'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -10,7 +11,9 @@ export default function GameScene() {
   const [bgUrl, setBgUrl] = useState<string>('')
   const [spriteUrl, setSpriteUrl] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string>('')
-  const [dialogue, setDialogue] = useState<string>('你好，我是测试角色。')
+  const [dialogue, setDialogue] = useState<string>('')
+  const dialogueRef = useRef<string>('')
+  useEffect(() => { dialogueRef.current = dialogue }, [dialogue])
   const [input, setInput] = useState<string>('')
   const [affection, setAffection] = useState<number>(0)
   const [coins, setCoins] = useState<number>(100)
@@ -65,11 +68,46 @@ export default function GameScene() {
         setAvatars(avList)
 
         if (!bgUrl && bgList.length) setBgUrl(bgList[0].url)
-        if (!spriteUrl && spList.length) setSpriteUrl(spList[0].url)
-        if (!avatarUrl && avList.length) setAvatarUrl(avList[0].url)
+        let avatarSet = false
+        if (!spriteUrl && spList.length) {
+          const preferred = spList.find((s) => (s.emotion || '').toLowerCase() === 'normal') || spList[0]
+          setSpriteUrl(preferred.url)
+          if (preferred.char) {
+            const charId = preferred.char
+            const matchedAvatar = avList.find(
+              (a) => a.url.includes(`/avatars/${charId}`) || (a.name ?? '').toLowerCase().includes(charId.toLowerCase()),
+            )
+            if (matchedAvatar) {
+              setAvatarUrl(matchedAvatar.url)
+              avatarSet = true
+            }
+          }
+        }
+        if (!avatarUrl && avList.length && !avatarSet) setAvatarUrl(avList[0].url)
       } catch (e) {
         // ignore
       }
+    })()
+
+    // 初始化开场台词：优先从 /opening-lines.json 读取，否则回退到默认常量
+    ;(async () => {
+      try {
+        let lines: string[] = []
+        try {
+          const r = await fetch('/opening-lines.json', { cache: 'no-store' })
+          if (r.ok) {
+            const j = await r.json()
+            if (Array.isArray(j)) lines = j
+            else if (Array.isArray(j?.lines)) lines = j.lines
+          }
+        } catch {}
+        if (!lines?.length) lines = DEFAULT_OPENING_LINES
+        // 只展示 1 句随机开场白
+        const idx = Math.floor(Math.random() * lines.length)
+        const initialText = lines[idx] || ''
+        setDialogue(initialText)
+        dialogueRef.current = initialText
+      } catch {}
     })()
 
     // 计算舞台尺寸（改为占满父容器 / 全屏）
@@ -95,7 +133,22 @@ export default function GameScene() {
   }, [spriteUrl, avatars, sprites])
 
   async function sendMessage() {
+    const userText = input.trim()
+    if (!userText) return
+    // 清空输入框（立即），并以打字机动画显示玩家输入
+    setInput('')
+    const header = `你：${userText}\n`
     setDialogue('')
+    dialogueRef.current = ''
+    // 简单打字动画（仅用于玩家输入，长度有限，性能可接受）
+    for (const ch of header) {
+      await new Promise((r) => setTimeout(r, 12))
+      setDialogue((d) => {
+        const next = d + ch
+        dialogueRef.current = next
+        return next
+      })
+    }
     // 简单关键词推断情绪并尝试切换立绘
     try {
       const hint = inferEmotion(input, affection)
@@ -111,12 +164,39 @@ export default function GameScene() {
     const res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: input, freechat: true }),
+      body: JSON.stringify({ message: userText, freechat: true }),
     })
     if (!res.ok || !res.body) return
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    // Smooth streaming: coalesce micro-chunks to reduce re-renders
+    const pendingRef = { text: '' }
+    let raf = 0 as any
+    let assistantCleared = false
+    const flush = () => {
+      if (!pendingRef.text) return
+      const chunk = pendingRef.text
+      pendingRef.text = ''
+      setDialogue((d) => {
+        const next = d + chunk
+        dialogueRef.current = next
+        return next
+      })
+      raf = 0
+    }
+    const enqueue = (t: string) => {
+      if (!t) return
+      // 第一次收到 AI token 时，清空对话框以移除玩家输入
+      if (!assistantCleared) {
+        pendingRef.text = ''
+        setDialogue('')
+        dialogueRef.current = ''
+        assistantCleared = true
+      }
+      pendingRef.text += t
+      if (!raf) raf = requestAnimationFrame(flush)
+    }
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
@@ -128,7 +208,7 @@ export default function GameScene() {
         const payload = part.replace(/^data:\s*/, '')
         try {
           const msg: MessageChunk = JSON.parse(payload)
-          if (msg.type === 'token') setDialogue((d) => d + msg.data)
+          if (msg.type === 'token') enqueue(msg.data)
           if (msg.type === 'meta') {
             // 简单示例：meta里可能包含情绪或好感度浮动
             const meta = JSON.parse(msg.data)
@@ -148,7 +228,16 @@ export default function GameScene() {
         } catch {}
       }
     }
-    setInput('')
+    // final flush
+    if (pendingRef.text) {
+      setDialogue((d) => {
+        const next = d + pendingRef.text
+        dialogueRef.current = next
+        return next
+      })
+      pendingRef.text = ''
+    }
+    // 输入已在发送时清空，这里无需重复
   }
 
   function onUseItem(it: Item) {

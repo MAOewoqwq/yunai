@@ -1,4 +1,5 @@
 import { sseFormat } from '@/lib/sse'
+import { DEFAULT_SYSTEM_PERSONA } from '@/lib/prompt'
 
 export const runtime = 'nodejs'
 
@@ -9,6 +10,7 @@ type Req = {
   systemOverride?: string
   temperature?: number
   max_tokens?: number
+  freechat?: boolean
 }
 
 export async function POST(req: Request) {
@@ -25,10 +27,56 @@ export async function POST(req: Request) {
     return new Response('Missing DEEPSEEK_API_KEY', { status: 500 })
   }
 
+  // Freechat gating: only forward when default enabled or content has trigger
+  function parseFreechat(msg: string) {
+    const raw = (msg || '').trim()
+    const defaultOn = String(process.env.FREECHAT_DEFAULT || 'true').toLowerCase() === 'true'
+    const patterns: Array<RegExp> = [
+      /^(?:自由对话[:：])\s*(.*)$/i,
+      /^\/ai\s+(.*)$/i,
+      /^#ai\s+(.*)$/i,
+    ]
+    let matched = false
+    let pure = raw
+    for (const re of patterns) {
+      const m = raw.match(re)
+      if (m) {
+        matched = true
+        pure = (m[1] || '').trim() || raw.replace(re, '').trim()
+        break
+      }
+    }
+    const allow = defaultOn || matched
+    return { allow, pure }
+  }
+
+  const { allow: allowFreechat, pure: userText } = parseFreechat(body.message || '')
+
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = []
-  if (body.systemOverride) messages.push({ role: 'system', content: body.systemOverride })
+  // 固定人设：如未传入 systemOverride，则注入默认人设
+  const sys = (body.systemOverride && body.systemOverride.trim()) || DEFAULT_SYSTEM_PERSONA
+  messages.push({ role: 'system', content: sys })
   if (Array.isArray(body.history)) messages.push(...(body.history as any))
-  messages.push({ role: 'user', content: body.message || '' })
+  messages.push({ role: 'user', content: userText || (body.message || '') })
+
+  if (body.freechat && !allowFreechat) {
+    const rs = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseFormat({ type: 'meta', data: JSON.stringify({ note: 'freechat_blocked', hint: '以“自由对话:”或“/ai ”开头以启用自由对话' }) })))
+        controller.enqueue(encoder.encode(sseFormat({ type: 'token', data: '（未进入自由对话模式）' })))
+        controller.enqueue(encoder.encode(sseFormat({ type: 'done', data: '' })))
+        controller.close()
+      },
+    })
+    return new Response(rs, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    })
+  }
 
   const upstream = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -60,7 +108,48 @@ export async function POST(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        // 把 DeepSeek 的 SSE 转换为前端消费的 token/done 事件
+        // 把 DeepSeek 的 SSE 转换为前端消费的 token/done/meta(情绪) 事件
+        let lastOut: string | null = null
+        // 立绘情绪解析状态：仅在输出正文开始前解析形如（normal）/(normal)
+        let hasVisibleOutput = false
+        let tagOpen = false
+        let tagBuf = ''
+        let lastEmotion: string | null = null
+
+        const isOpen = (ch: string) => ch === '(' || ch === '（'
+        const isClose = (ch: string) => ch === ')' || ch === '）'
+        const allowedEmotions = new Set(['normal', 'change'])
+        function processChunk(raw: string): { text: string; emotion?: string } {
+          if (!raw) return { text: '' }
+          let out = ''
+          let detected: string | undefined
+          for (let i = 0; i < raw.length; i++) {
+            const ch = raw[i]
+            if (!hasVisibleOutput) {
+              if (tagOpen) {
+                tagBuf += ch
+                if (isClose(ch)) {
+                  // parse tag content
+                  const body = tagBuf.slice(1, -1).trim().toLowerCase()
+                  const emo = body.replace(/^emotion[:=]\s*/, '')
+                  if (allowedEmotions.has(emo)) detected = emo
+                  tagOpen = false
+                  tagBuf = ''
+                }
+                continue
+              }
+              if (isOpen(ch)) {
+                tagOpen = true
+                tagBuf = ch
+                continue
+              }
+            }
+            // 非标签或正文开始后的普通字符
+            out += ch
+            if (!hasVisibleOutput && /\S/.test(ch)) hasVisibleOutput = true
+          }
+          return { text: out, emotion: detected }
+        }
         while (true) {
           const { value, done } = await reader.read()
           if (done) break
@@ -81,7 +170,20 @@ export async function POST(req: Request) {
               const delta = json?.choices?.[0]?.delta
               const content: string | undefined = delta?.content
               // 可选：忽略 reasoning_content，或按需单独发送
-              if (content) controller.enqueue(encoder.encode(sseFormat({ type: 'token', data: content })))
+              if (content) {
+                const processed = processChunk(content)
+                if (processed.emotion && processed.emotion !== lastEmotion) {
+                  lastEmotion = processed.emotion
+                  controller.enqueue(encoder.encode(sseFormat({ type: 'meta', data: JSON.stringify({ emotion: lastEmotion }) })))
+                }
+                const clean = processed.text
+                if (clean) {
+                  // 简单去重：忽略与上一个完全相同的连续切片
+                  if (lastOut === clean) continue
+                  lastOut = clean
+                  controller.enqueue(encoder.encode(sseFormat({ type: 'token', data: clean })))
+                }
+              }
             } catch {}
           }
         }
