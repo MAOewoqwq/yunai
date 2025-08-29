@@ -4,19 +4,58 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
 export default function GameScene() {
-  const [bgUrl, setBgUrl] = useState<string>('/uploads/bg/sample-bg.jpg')
-  const [spriteUrl, setSpriteUrl] = useState<string>('/uploads/sprites/hero/neutral.png')
+  const [bgUrl, setBgUrl] = useState<string>('')
+  const [spriteUrl, setSpriteUrl] = useState<string>('')
+  const [avatarUrl, setAvatarUrl] = useState<string>('')
   const [dialogue, setDialogue] = useState<string>('你好，我是测试角色。')
   const [input, setInput] = useState<string>('')
   const [affection, setAffection] = useState<number>(0)
+
+  const [sprites, setSprites] = useState<Array<{ url: string; char?: string; emotion?: string }>>([])
+  const [backgrounds, setBackgrounds] = useState<Array<{ url: string; name?: string }>>([])
+  const [avatars, setAvatars] = useState<Array<{ url: string; name?: string }>>([])
 
   const containerRef = useRef<HTMLDivElement>(null)
 
   const aspectPadding = useMemo(() => ({ paddingTop: `${(9 / 16) * 100}%` }), [])
 
   useEffect(() => {
-    // 占位：未来根据情绪切换立绘
+    // 启动时加载本地上传的资源
+    ;(async () => {
+      try {
+        const [bgRes, spRes, avRes] = await Promise.all([
+          fetch('/api/assets?type=bg'),
+          fetch('/api/assets?type=sprites'),
+          fetch('/api/assets?type=avatars'),
+        ])
+        const bgJson = await bgRes.json()
+        const spJson = await spRes.json()
+        const avJson = await avRes.json()
+        const bgList: Array<{ url: string; name?: string }> = bgJson.files || []
+        const spList: Array<{ url: string; char?: string; emotion?: string }> = spJson.files || []
+        const avList: Array<{ url: string; name?: string }> = avJson.files || []
+        setBackgrounds(bgList)
+        setSprites(spList)
+        setAvatars(avList)
+
+        if (!bgUrl && bgList.length) setBgUrl(bgList[0].url)
+        if (!spriteUrl && spList.length) setSpriteUrl(spList[0].url)
+        if (!avatarUrl && avList.length) setAvatarUrl(avList[0].url)
+      } catch (e) {
+        // ignore
+      }
+    })()
   }, [])
+
+  // 当立绘切换时，尝试匹配同角色的头像
+  useEffect(() => {
+    if (!spriteUrl || avatars.length === 0 || sprites.length === 0) return
+    const current = sprites.find((s) => s.url === spriteUrl)
+    const charId = current?.char
+    if (!charId) return
+    const found = avatars.find((a) => a.url.includes(`/avatars/${charId}`) || (a.name ?? '').toLowerCase().includes(charId.toLowerCase()))
+    if (found) setAvatarUrl(found.url)
+  }, [spriteUrl, avatars, sprites])
 
   async function sendMessage() {
     setDialogue('')
@@ -48,14 +87,13 @@ export default function GameScene() {
               setAffection((a) => Math.max(0, Math.min(100, a + meta.affectionDelta)))
             }
             if (meta.emotion && typeof meta.emotion === 'string') {
-              const map: Record<string, string> = {
-                happy: '/uploads/sprites/hero/happy.png',
-                angry: '/uploads/sprites/hero/angry.png',
-                shy: '/uploads/sprites/hero/shy.png',
-                sad: '/uploads/sprites/hero/sad.png',
-                neutral: '/uploads/sprites/hero/neutral.png',
-              }
-              setSpriteUrl(map[meta.emotion] || map['neutral'])
+              const current = sprites.find((s) => s.url === spriteUrl)
+              const targetEmotion = String(meta.emotion).toLowerCase()
+              let candidate = sprites.find(
+                (s) => s.emotion?.toLowerCase() === targetEmotion && s.char && current?.char && s.char === current.char,
+              )
+              if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === targetEmotion)
+              if (candidate) setSpriteUrl(candidate.url)
             }
           }
         } catch {}
@@ -75,14 +113,25 @@ export default function GameScene() {
 
         {/* 立绘层 */}
         <div className="absolute inset-0 pointer-events-none">
-          <img
-            src={spriteUrl}
-            alt="sprite"
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
-          />
+          {spriteUrl && (
+            <img
+              src={spriteUrl}
+              alt="sprite"
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
+            />
+          )}
         </div>
 
-        {/* HUD - 好感度 */}
+        {/* HUD - 头像与好感度 */}
+        <div className="absolute top-3 left-3 flex items-center gap-3">
+          <div className="h-14 w-14 rounded-full bg-white/10 overflow-hidden border border-white/20">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full bg-gradient-to-br from-white/10 to-white/5" />
+            )}
+          </div>
+        </div>
         <div className="absolute top-3 right-3 w-40">
           <div className="text-xs mb-1 text-white/80">好感度</div>
           <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
@@ -111,4 +160,3 @@ export default function GameScene() {
     </div>
   )
 }
-
