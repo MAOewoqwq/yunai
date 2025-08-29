@@ -134,7 +134,11 @@ export default function GameScene() {
         className="relative overflow-hidden"
         style={{ width: stageSize.width, height: stageSize.height }}
       >
-        <EngineStage bgUrl={bgUrl} spriteUrl={spriteUrl} />
+        <EngineStage
+          bgUrl={bgUrl}
+          spriteUrl={spriteUrl}
+          offsetPx={Math.round(stageSize.height * 0.3)}
+        />
 
         {/* HUD - 头像与好感度 */}
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">

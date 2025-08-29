@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef } from 'react'
 type Props = {
   bgUrl?: string
   spriteUrl?: string
+  // 由父级传入的像素偏移（相对于舞台高度的换算），正值向下
+  offsetPx?: number
 }
 
-function BasicStage({ bgUrl, spriteUrl }: Props) {
+function BasicStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
   // 与 NarraLeaf 模式一致的调试参数：等比缩放与垂直偏移（像素）
   const { scale, yoff } = useMemo(() => {
     let sv: number | undefined
@@ -44,7 +46,7 @@ function BasicStage({ bgUrl, spriteUrl }: Props) {
             alt="sprite"
             className="absolute bottom-0 left-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
             style={{
-              transform: `translateX(-50%) translateY(${yoff}px) scale(${scale})`,
+              transform: `translateX(-50%) translateY(${(yoff + offsetPx)}px) scale(${scale})`,
               transformOrigin: 'bottom center',
             }}
           />
@@ -55,7 +57,7 @@ function BasicStage({ bgUrl, spriteUrl }: Props) {
 }
 
 // NarraLeaf 渲染层（基于 narraleaf-react@0.1.0，兼容 React 18）
-function NarraLeafStage({ bgUrl, spriteUrl }: Props) {
+function NarraLeafStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
   // 动态 import 以避免 SSR 及包体在未开启时载入
   const NL = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -130,9 +132,10 @@ function NarraLeafStage({ bgUrl, spriteUrl }: Props) {
       try { sprite.setSrc(spriteUrl) } catch {}
       // 应用等比缩放与底部对齐（调试）
       try {
+        const totalY = (debugYOffset || 0) + (offsetPx || 0)
         sprite.applyTransform(
           new NL.Transform(
-            { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: debugYOffset }) },
+            { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
             { duration: 0 },
           ),
         )
@@ -150,9 +153,10 @@ function NarraLeafStage({ bgUrl, spriteUrl }: Props) {
         spriteCreatedRef.current = true
         // 首次载入时按照比例缩放并从底部开始对齐（调试）
         try {
+          const totalY = (debugYOffset || 0) + (offsetPx || 0)
           sprite.show(
             new NL.Transform(
-              { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: debugYOffset }) },
+              { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
               { duration: 0 },
             ),
           )
