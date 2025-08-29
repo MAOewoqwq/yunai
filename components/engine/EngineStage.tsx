@@ -46,7 +46,8 @@ function BasicStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
             alt="sprite"
             className="absolute bottom-0 left-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
             style={{
-              transform: `translateX(-50%) translateY(${(yoff + offsetPx)}px) scale(${scale})`,
+              // 立绘下移 10% 已由父级 offsetPx 传入；这里额外将缩放放大 10%
+              transform: `translateX(-50%) translateY(${(yoff + offsetPx)}px) scale(${scale * 1.1})`,
               transformOrigin: 'bottom center',
             }}
           />
@@ -135,7 +136,7 @@ function NarraLeafStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
         const totalY = (debugYOffset || 0) + (offsetPx || 0)
         sprite.applyTransform(
           new NL.Transform(
-            { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
+            { transform: { scale: debugScale * 1.1 }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
             { duration: 0 },
           ),
         )
@@ -156,7 +157,7 @@ function NarraLeafStage({ bgUrl, spriteUrl, offsetPx = 0 }: Props) {
           const totalY = (debugYOffset || 0) + (offsetPx || 0)
           sprite.show(
             new NL.Transform(
-              { transform: { scale: debugScale }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
+              { transform: { scale: debugScale * 1.1 }, position: new NL.Align({ xalign: 0.5, yalign: 1, yoffset: totalY }) },
               { duration: 0 },
             ),
           )

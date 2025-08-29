@@ -121,7 +121,7 @@ export default function GameScene() {
   }
 
   return (
-    <div ref={wrapperRef} className="relative w-full h-[100svh] flex items-center justify-center">
+    <div ref={wrapperRef} className="relative w-full h-[100dvh] flex items-center justify-center">
       {/* 全屏铺满的背景（随窗口缩放覆盖）*/}
       <div
         className="absolute inset-0 -z-10 bg-center bg-cover"
@@ -137,7 +137,8 @@ export default function GameScene() {
         <EngineStage
           bgUrl={bgUrl}
           spriteUrl={spriteUrl}
-          offsetPx={Math.round(stageSize.height * 0.3)}
+          // 立绘上移 15%（即相对之前 60% 下移，调整为 45% 下移）
+          offsetPx={Math.round(stageSize.height * 0.45)}
         />
 
         {/* HUD - 头像与好感度 */}
@@ -158,7 +159,10 @@ export default function GameScene() {
         </div>
 
         {/* 对话框 */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+        <div
+          className="absolute bottom-0 left-0 right-0 p-3 sm:p-4"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}
+        >
           <div className="rounded-xl border border-dialogue-border bg-dialogue-bg backdrop-blur px-3 py-2 sm:px-4 sm:py-3">
             <div className="mb-1 sm:mb-2 text-xs sm:text-sm text-white/70">角色A</div>
             <div className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg leading-relaxed text-shadow">{dialogue}</div>

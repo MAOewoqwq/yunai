@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen flex items-center justify-center">
+    <main className="min-h-[100dvh] flex items-center justify-center">
       <div className="text-center space-y-6">
         <h1 className="text-3xl font-bold">Galgame Web</h1>
         <p className="text-white/70">Next.js + Tailwind + AI 对话（占位）</p>
@@ -16,4 +16,3 @@ export default function HomePage() {
     </main>
   )
 }
-
