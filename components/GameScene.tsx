@@ -127,11 +127,11 @@ export default function GameScene() {
         className="absolute inset-0 -z-10 bg-center bg-cover"
         style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}
       />
-      {/* 背景叠加一层暗色遮罩以增强对话可读性 */}
-      <div className="absolute inset-0 -z-10 bg-black/30" />
+      {/* 背景叠加一层轻微遮罩以提升文本可读性（更浅，避免看起来像黑边） */}
+      <div className="absolute inset-0 -z-10 bg-black/10 sm:bg-black/20" />
 
       <div
-        className="relative overflow-hidden rounded-lg shadow-lg"
+        className="relative overflow-hidden"
         style={{ width: stageSize.width, height: stageSize.height }}
       >
         <EngineStage bgUrl={bgUrl} spriteUrl={spriteUrl} />

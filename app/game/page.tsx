@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function GamePage() {
   return (
-    <main className="min-h-[100svh] p-2 sm:p-4">
+    <main className="min-h-[100svh] p-0">
       <GameScene />
     </main>
   )
