@@ -1,9 +1,14 @@
 import '../styles/globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
   title: 'Galgame Web',
   description: 'Single-player VN with AI dialogue',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

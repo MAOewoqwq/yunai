@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -15,9 +15,8 @@ export default function GameScene() {
   const [backgrounds, setBackgrounds] = useState<Array<{ url: string; name?: string }>>([])
   const [avatars, setAvatars] = useState<Array<{ url: string; name?: string }>>([])
 
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const aspectPadding = useMemo(() => ({ paddingTop: `${(9 / 16) * 100}%` }), [])
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
 
   useEffect(() => {
     // 启动时加载本地上传的资源
@@ -45,6 +44,24 @@ export default function GameScene() {
         // ignore
       }
     })()
+
+    // 计算舞台尺寸（16:9 自适应，随窗口变化）
+    const updateStage = () => {
+      const targetRatio = 16 / 9
+      const wrap = wrapperRef.current
+      const w = wrap?.clientWidth ?? window.innerWidth
+      const h = wrap?.clientHeight ?? window.innerHeight
+      let width = w
+      let height = Math.round(width / targetRatio)
+      if (height > h) {
+        height = h
+        width = Math.round(height * targetRatio)
+      }
+      setStageSize({ width, height })
+    }
+    updateStage()
+    window.addEventListener('resize', updateStage)
+    return () => window.removeEventListener('resize', updateStage)
   }, [])
 
   // 当立绘切换时，尝试匹配同角色的头像
@@ -103,8 +120,19 @@ export default function GameScene() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <div className="relative w-full overflow-hidden rounded-lg shadow-lg" style={aspectPadding} ref={containerRef}>
+    <div ref={wrapperRef} className="relative w-full h-[100svh] flex items-center justify-center">
+      {/* 全屏铺满的背景（随窗口缩放覆盖）*/}
+      <div
+        className="absolute inset-0 -z-10 bg-center bg-cover"
+        style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}
+      />
+      {/* 背景叠加一层暗色遮罩以增强对话可读性 */}
+      <div className="absolute inset-0 -z-10 bg-black/30" />
+
+      <div
+        className="relative overflow-hidden rounded-lg shadow-lg"
+        style={{ width: stageSize.width, height: stageSize.height }}
+      >
         {/* 背景层 */}
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -123,8 +151,8 @@ export default function GameScene() {
         </div>
 
         {/* HUD - 头像与好感度 */}
-        <div className="absolute top-3 left-3 flex items-center gap-3">
-          <div className="h-14 w-14 rounded-full bg-white/10 overflow-hidden border border-white/20">
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-white/10 overflow-hidden border border-white/20">
             {avatarUrl ? (
               <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
             ) : (
@@ -132,27 +160,27 @@ export default function GameScene() {
             )}
           </div>
         </div>
-        <div className="absolute top-3 right-3 w-40">
-          <div className="text-xs mb-1 text-white/80">好感度</div>
+        <div className="absolute top-2 right-2 w-28 sm:top-3 sm:right-3 sm:w-40">
+          <div className="text-[11px] sm:text-xs mb-1 text-white/80">好感度</div>
           <div className="h-2 w-full rounded bg-white/10 overflow-hidden">
             <div className="h-full bg-pink-500" style={{ width: `${affection}%` }} />
           </div>
         </div>
 
         {/* 对话框 */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="rounded-xl border border-dialogue-border bg-dialogue-bg backdrop-blur px-4 py-3">
-            <div className="mb-2 text-sm text-white/70">角色A</div>
-            <div className="min-h-[64px] text-lg leading-relaxed text-shadow">{dialogue}</div>
-            <div className="mt-3 flex gap-2">
+        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+          <div className="rounded-xl border border-dialogue-border bg-dialogue-bg backdrop-blur px-3 py-2 sm:px-4 sm:py-3">
+            <div className="mb-1 sm:mb-2 text-xs sm:text-sm text-white/70">角色A</div>
+            <div className="min-h-[56px] sm:min-h-[64px] text-base sm:text-lg leading-relaxed text-shadow">{dialogue}</div>
+            <div className="mt-2 sm:mt-3 flex gap-2">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') sendMessage() }}
                 placeholder="输入并按回车与角色对话"
-                className="flex-1 rounded bg-white/10 px-3 py-2 outline-none placeholder:text-white/40"
+                className="flex-1 rounded bg-white/10 px-2 py-2 sm:px-3 outline-none placeholder:text-white/40 text-sm sm:text-base"
               />
-              <button onClick={sendMessage} className="rounded bg-white/15 px-3 py-2 hover:bg-white/25">发送</button>
+              <button onClick={sendMessage} className="rounded bg-white/15 px-3 py-2 hover:bg-white/25 text-sm sm:text-base">发送</button>
             </div>
           </div>
         </div>
