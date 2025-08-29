@@ -10,6 +10,7 @@ import PixelAvatarFrame from '@/components/ui/PixelAvatarFrame'
 import PixelButton from '@/components/ui/PixelButton'
 import PixelCurrency from '@/components/ui/PixelCurrency'
 import AssetImageButton from '@/components/ui/AssetImageButton'
+import PixelAudioBar from '@/components/ui/PixelAudioBar'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -33,6 +34,17 @@ export default function GameScene() {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
   const [shopBtnSrc, setShopBtnSrc] = useState<string>('')
+  // 好感度飘字动画用的临时状态
+  const [affectionGain, setAffectionGain] = useState<number | null>(null)
+  const affectionAnimTimer = useRef<number | null>(null)
+  useEffect(() => {
+    return () => {
+      if (affectionAnimTimer.current) {
+        window.clearTimeout(affectionAnimTimer.current)
+        affectionAnimTimer.current = null
+      }
+    }
+  }, [])
 
   // 名字展示已固定为：東嘉弥真 御奈
 
@@ -279,6 +291,17 @@ export default function GameScene() {
   function onUseItem(it: Item) {
     if (typeof it.affectionDelta === 'number') {
       setAffection((a) => Math.max(0, Math.min(100, a + it.affectionDelta!)))
+      // 仅对增加的情况显示飘字动画
+      if (it.affectionDelta! > 0) {
+        setAffectionGain(it.affectionDelta!)
+        if (affectionAnimTimer.current) {
+          window.clearTimeout(affectionAnimTimer.current)
+        }
+        affectionAnimTimer.current = window.setTimeout(() => {
+          setAffectionGain(null)
+          affectionAnimTimer.current = null
+        }, 1200)
+      }
     }
     if (it.emotion) {
       const target = it.emotion.toLowerCase()
@@ -332,7 +355,14 @@ export default function GameScene() {
               <span>好感度</span>
               <PixelHeart size={2} color="#F7C3F4" />
             </div>
-            <PixelMeter value={affection} height={10} />
+            <div className="relative">
+              <PixelMeter value={affection} height={10} />
+              {typeof affectionGain === 'number' && affectionGain > 0 && (
+                <div className="affection-float absolute right-0 -top-3 sm:-top-4 text-[#F7C3F4] text-xs sm:text-sm font-semibold">
+                  +{affectionGain}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 text-xs sm:text-sm">
             <PixelCurrency amount={coins} />
@@ -342,6 +372,11 @@ export default function GameScene() {
               <PixelButton size="md" onClick={() => setShopOpen(true)}>背包/商城</PixelButton>
             )}
           </div>
+        </div>
+
+        {/* 顶部中部：音乐播放条 */}
+        <div className="absolute left-1/2 top-12 sm:top-14 w-1/2 max-w-[280px]" style={{ transform: 'translate(-60%, -20%)' }}>
+          <PixelAudioBar src="/audio/theme.mp3" title="背景音乐" loop initialVolume={0.6} />
         </div>
 
         {/* 对话框 */}

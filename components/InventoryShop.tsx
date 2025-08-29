@@ -98,6 +98,8 @@ export default function InventoryShop({ coins, inventory, onClose, onCoinsChange
     const nextInv = { ...inventory, [item.id]: Math.max(0, count - 1) }
     onInventoryChange(nextInv)
     onUseItem(item)
+    // 送出后自动关闭商城/背包
+    onClose()
   }
 
   return (
