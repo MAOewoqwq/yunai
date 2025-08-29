@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
+import EngineStage from './engine/EngineStage'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
 
@@ -133,22 +134,7 @@ export default function GameScene() {
         className="relative overflow-hidden rounded-lg shadow-lg"
         style={{ width: stageSize.width, height: stageSize.height }}
       >
-        {/* 背景层 */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${bgUrl})` }}
-        />
-
-        {/* 立绘层 */}
-        <div className="absolute inset-0 pointer-events-none">
-          {spriteUrl && (
-            <img
-              src={spriteUrl}
-              alt="sprite"
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[70%] drop-shadow-[0_10px_40px_rgba(0,0,0,0.6)]"
-            />
-          )}
-        </div>
+        <EngineStage bgUrl={bgUrl} spriteUrl={spriteUrl} />
 
         {/* HUD - 头像与好感度 */}
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-3">
