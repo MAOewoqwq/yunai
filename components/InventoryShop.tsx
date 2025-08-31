@@ -66,12 +66,12 @@ const shopCatalog: Item[] = [
     id: 'gift_music',
     name: '泡姜',
     price: 30,
-    affectionDelta: 6,
+    // 泡姜会降低好感度
+    affectionDelta: -6,
     icon: '/uploads/items/gift.shengjiang.PNG',
     giftLines: [
-      '这个味道……好暖。你是担心我着凉吗？',
-      '嗯，暖胃也暖心。记住你的好。',
-      '下次别买太多，适量就好——我会慢慢喝完的。'
+      '抱歉...我不太习惯这个味道...',
+      '谢谢你的礼物，但是泡姜我有点苦手呢...'
     ],
   },
 ]

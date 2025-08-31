@@ -37,8 +37,9 @@ export default function GameScene() {
   const [stageSize, setStageSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 })
   const [shopBtnSrc, setShopBtnSrc] = useState<string>('')
   const [albumBtnSrc, setAlbumBtnSrc] = useState<string>('')
-  // 好感度飘字动画用的临时状态
+  // 好感度飘字动画用的临时状态（正/负分开展示）
   const [affectionGain, setAffectionGain] = useState<number | null>(null)
+  const [affectionLoss, setAffectionLoss] = useState<number | null>(null)
   const affectionAnimTimer = useRef<number | null>(null)
   useEffect(() => {
     return () => {
@@ -301,14 +302,23 @@ export default function GameScene() {
   function onUseItem(it: Item) {
     if (typeof it.affectionDelta === 'number') {
       setAffection((a) => Math.max(0, Math.min(100, a + it.affectionDelta!)))
-      // 仅对增加的情况显示飘字动画
-      if (it.affectionDelta! > 0) {
-        setAffectionGain(it.affectionDelta!)
+      const delta = it.affectionDelta!
+      if (delta !== 0) {
+        // 清除上一次动画并设置对应的增/减浮字
         if (affectionAnimTimer.current) {
           window.clearTimeout(affectionAnimTimer.current)
+          affectionAnimTimer.current = null
+        }
+        if (delta > 0) {
+          setAffectionLoss(null)
+          setAffectionGain(delta)
+        } else {
+          setAffectionGain(null)
+          setAffectionLoss(Math.abs(delta))
         }
         affectionAnimTimer.current = window.setTimeout(() => {
           setAffectionGain(null)
+          setAffectionLoss(null)
           affectionAnimTimer.current = null
         }, 1200)
       }
@@ -383,6 +393,11 @@ export default function GameScene() {
               {typeof affectionGain === 'number' && affectionGain > 0 && (
                 <div className="affection-float absolute right-0 -top-3 sm:-top-4 text-[#F7C3F4] text-xs sm:text-sm font-semibold">
                   +{affectionGain}
+                </div>
+              )}
+              {typeof affectionLoss === 'number' && affectionLoss > 0 && (
+                <div className="affection-float absolute right-0 -top-3 sm:-top-4 text-gray-300 text-xs sm:text-sm font-semibold">
+                  -{affectionLoss}
                 </div>
               )}
             </div>

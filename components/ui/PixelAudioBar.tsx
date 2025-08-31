@@ -19,6 +19,8 @@ type PixelAudioBarProps = {
   // 折叠/收起按钮的自定义图标（占位用，可自行替换图片）
   iconSrc?: string
   iconAlt?: string
+  // 边框/外框使用的贴图（默认使用项目中的音乐外框）
+  frameSrc?: string
 }
 
 export default function PixelAudioBar({
@@ -33,6 +35,7 @@ export default function PixelAudioBar({
   initialCollapsed = true,
   iconSrc,
   iconAlt = 'music icon',
+  frameSrc,
 }: PixelAudioBarProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
@@ -112,29 +115,40 @@ export default function PixelAudioBar({
   const meterSeg = size === 'md' ? 32 : 28
   const titleCls = size === 'md' ? 'text-xs mb-1' : 'text-[11px] mb-0.5'
   const timeCls = size === 'md' ? 'text-[11px]' : 'text-[10px]'
-  // 调整：图标填充按钮容器；按钮边框更细、无内边距并固定尺寸
-  const thinBorderCls = 'border-[0.5px]'
+  // 尺寸：用于包裹图像的轻量容器
   const toggleBtnSizeCls = size === 'md' ? 'w-8 h-8' : 'w-7 h-7'
-  const toggleBtnOverride = ['p-0', 'overflow-hidden', 'relative', thinBorderCls, toggleBtnSizeCls].join(' ')
+  const toggleBtnOverride = ['p-0', 'relative', toggleBtnSizeCls].join(' ')
+  const rotatingImgCls = isPlaying ? 'spin-slow' : ''
+  const frameURL = frameSrc ?? '/uploads/avatars/music-bg_副本.PNG'
+  const scaleCls = 'scale-150' // 在之前基础上放大 1.5x（即再放大 30%）
 
   if (collapsible && collapsed) {
-    // 收起状态：仅显示一个音符按钮，点击后展开
+    // 收起状态：仅显示原图（无方框），点击后展开
     return (
       <div className={className}>
-        <PixelButton
-          size={btnSize as any}
-          variant="primary"
+        <button
           aria-label="展开音乐播放条"
           onClick={() => setCollapsed(false)}
-          className={toggleBtnOverride}
+          className={[toggleBtnOverride, 'bg-transparent border-0 outline-none appearance-none'].join(' ')}
         >
-          {iconSrc ? (
-            // 占位图标：可通过传入 iconSrc 自行替换
-            <img src={iconSrc} alt={iconAlt} className={["absolute", "inset-0", "w-full", "h-full", 'object-cover', 'block', 'pointer-events-none'].join(' ')} />
-          ) : (
-            '♪'
-          )}
-        </PixelButton>
+          {/* 背景外框图 */}
+          <img src={frameURL} alt={iconAlt} className={[
+            'absolute', 'inset-0', 'w-full', 'h-full', 'object-contain', 'block', 'pointer-events-none', 'transform', scaleCls
+          ].join(' ')} />
+          {/* 居中圆形音乐图标（使用外层包裹进行平移，内层仅负责旋转） */}
+          <div className={[
+            'absolute', 'left-1/2', 'top-1/2', '-translate-x-1/2', '-translate-y-1/2', 'transform',
+            'w-[62%]', 'h-[62%]', 'pointer-events-none'
+          ].join(' ')}>
+            <img
+              src={iconSrc || '/uploads/avatars/music.png'}
+              alt={iconAlt}
+              className={[
+                'w-full', 'h-full', 'rounded-full', 'object-cover', 'block', rotatingImgCls
+              ].join(' ')}
+            />
+          </div>
+        </button>
       </div>
     )
   }
@@ -154,18 +168,29 @@ export default function PixelAudioBar({
         </div>
       </div>
       {collapsible && (
-        <PixelButton
-          size={btnSize as any}
-          className={["ml-1", toggleBtnOverride].join(' ')}
+        <button
+          className={["ml-1", toggleBtnOverride, 'bg-transparent border-0 outline-none appearance-none'].join(' ')}
           aria-label="收起音乐播放条"
           onClick={() => setCollapsed(true)}
         >
-          {iconSrc ? (
-            <img src={iconSrc} alt={iconAlt} className={["absolute", "inset-0", "w-full", "h-full", 'object-cover', 'block', 'pointer-events-none'].join(' ')} />
-          ) : (
-            '♪'
-          )}
-        </PixelButton>
+          {/* 背景外框图 */}
+          <img src={frameURL} alt={iconAlt} className={[
+            'absolute', 'inset-0', 'w-full', 'h-full', 'object-contain', 'block', 'pointer-events-none', 'transform', scaleCls
+          ].join(' ')} />
+          {/* 居中圆形音乐图标（使用外层包裹进行平移，内层仅负责旋转） */}
+          <div className={[
+            'absolute', 'left-1/2', 'top-1/2', '-translate-x-1/2', '-translate-y-1/2', 'transform',
+            'w-[62%]', 'h-[62%]', 'pointer-events-none'
+          ].join(' ')}>
+            <img
+              src={iconSrc || '/uploads/avatars/music.png'}
+              alt={iconAlt}
+              className={[
+                'w-full', 'h-full', 'rounded-full', 'object-cover', 'block', rotatingImgCls
+              ].join(' ')}
+            />
+          </div>
+        </button>
       )}
       {/* playback is controlled via an off-DOM HTMLAudioElement held in ref */}
     </PixelPanel>
