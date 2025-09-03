@@ -1,7 +1,7 @@
 "use client"
-import React from 'react'
+import type { ButtonHTMLAttributes } from 'react'
 
-type AssetImageButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type AssetImageButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   src: string
   label?: string
 }

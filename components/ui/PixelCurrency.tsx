@@ -1,5 +1,4 @@
 "use client"
-import React from 'react'
 
 type PixelCurrencyProps = {
   amount: number
@@ -48,4 +47,3 @@ export default function PixelCurrency({ amount, className }: PixelCurrencyProps)
     </div>
   )
 }
-

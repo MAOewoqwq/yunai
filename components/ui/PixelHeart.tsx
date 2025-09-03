@@ -1,5 +1,5 @@
 "use client"
-import React from 'react'
+import type { ReactElement } from 'react'
 
 type PixelHeartProps = {
   size?: number // pixel size per grid unit
@@ -54,7 +54,7 @@ export default function PixelHeart({ size = 3, color = '#F7C3F4', className }: P
     >
       {fillRanges.flatMap((ranges, y) =>
         ranges.flatMap(([sx, ex]) => {
-          const els: JSX.Element[] = []
+          const els: ReactElement[] = []
           for (let x = sx; x <= ex; x++) els.push(rect(x, y))
           return els
         }),

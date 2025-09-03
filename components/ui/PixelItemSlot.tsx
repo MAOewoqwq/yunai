@@ -1,10 +1,10 @@
 "use client"
-import React from 'react'
+import type { ReactNode } from 'react'
 
 type PixelItemSlotProps = {
   src?: string
   label?: string
-  footer?: React.ReactNode
+  footer?: ReactNode
   onClick?: () => void
   className?: string
   scale?: number

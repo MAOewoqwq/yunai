@@ -1,7 +1,7 @@
 "use client"
-import React from 'react'
+import type { ButtonHTMLAttributes } from 'react'
 
-type PixelButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type PixelButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'primary'
   size?: 'sm' | 'md'
 }
@@ -22,4 +22,3 @@ export default function PixelButton({ variant = 'default', size = 'sm', classNam
     </button>
   )
 }
-

@@ -11,6 +11,7 @@ import PixelButton from '@/components/ui/PixelButton'
 import PixelCurrency from '@/components/ui/PixelCurrency'
 import AssetImageButton from '@/components/ui/AssetImageButton'
 import Album from '@/components/Album'
+import { matchVoice } from '@/lib/voice'
 import PixelAudioBar from '@/components/ui/PixelAudioBar'
 
 type MessageChunk = { type: 'token' | 'done' | 'meta'; data: string }
@@ -28,6 +29,24 @@ export default function GameScene() {
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [shopOpen, setShopOpen] = useState<boolean>(false)
   const [albumOpen, setAlbumOpen] = useState<boolean>(false)
+  const [currentEmotion, setCurrentEmotion] = useState<string | null>(null)
+  const voiceRef = useRef<HTMLAudioElement | null>(null)
+
+  function playVoice(text: string, emo?: string | null) {
+    const url = matchVoice(text, emo ?? currentEmotion ?? undefined)
+    if (!url) return
+    let a = voiceRef.current
+    if (!a) {
+      a = new Audio()
+      a.preload = 'auto'
+      voiceRef.current = a
+    }
+    try { a.pause() } catch {}
+    a.src = url
+    a.currentTime = 0
+    a.volume = 1.0
+    a.play().catch(() => {})
+  }
 
   const [sprites, setSprites] = useState<Array<{ url: string; char?: string; emotion?: string }>>([])
   const [backgrounds, setBackgrounds] = useState<Array<{ url: string; name?: string }>>([])
@@ -277,6 +296,7 @@ export default function GameScene() {
             if (meta.emotion && typeof meta.emotion === 'string') {
               const current = sprites.find((s) => s.url === spriteUrl)
               const targetEmotion = String(meta.emotion).toLowerCase()
+              setCurrentEmotion(targetEmotion)
               let candidate = sprites.find(
                 (s) => s.emotion?.toLowerCase() === targetEmotion && s.char && current?.char && s.char === current.char,
               )
@@ -296,6 +316,8 @@ export default function GameScene() {
       })
       pendingRef.text = ''
     }
+    // Attempt voice playback for the final assistant line
+    playVoice(dialogueRef.current, currentEmotion)
     // 输入已在发送时清空，这里无需重复
   }
 
@@ -344,6 +366,8 @@ export default function GameScene() {
     const text = lines[idx] || lines[0]
     setDialogue(text)
     dialogueRef.current = text
+    if (it.emotion) setCurrentEmotion(it.emotion.toLowerCase())
+    playVoice(text, it.emotion?.toLowerCase())
   }
 
   return (

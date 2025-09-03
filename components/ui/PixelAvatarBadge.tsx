@@ -1,5 +1,4 @@
 "use client"
-import React from 'react'
 import PixelAvatarFrame from '@/components/ui/PixelAvatarFrame'
 
 type PixelAvatarBadgeProps = {
