@@ -23,10 +23,6 @@ export async function POST(req: Request) {
   const temperature = typeof body.temperature === 'number' ? body.temperature : Number(process.env.AI_TEMPERATURE || 0.7)
   const maxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : Number(process.env.AI_MAX_TOKENS || 512)
 
-  if (!apiKey) {
-    return new Response('Missing DEEPSEEK_API_KEY', { status: 500 })
-  }
-
   // Freechat gating: only forward when default enabled or content has trigger
   function parseFreechat(msg: string) {
     const raw = (msg || '').trim()
@@ -53,11 +49,22 @@ export async function POST(req: Request) {
   const { allow: allowFreechat, pure: userText } = parseFreechat(body.message || '')
 
   // Special rule: if user mentions self-introduction, output ONLY the fixed line
-  const selfIntroRegex = /(自我\s*介绍|介绍一下你|介绍下你|请.*自我介绍|做个?自我介绍)/
-  if (selfIntroRegex.test(userText || '')) {
+  const selfIntroRegexes: RegExp[] = [
+    /自我\s*介绍(?:一下|下)?/,
+    /介绍一下你(?:自己)?/,
+    /介绍下你(?:自己)?/,
+    /介绍你自己/,
+    /请.*自我\s*介绍/,
+    /来个?自我\s*介绍/,
+    /做(?:一)?个?自我\s*介绍/,
+  ]
+  // 自我介绍特例：无需访问上游模型，即使缺少 API KEY 也能返回固定回答
+  if (selfIntroRegexes.some((re) => re.test(userText || ''))) {
     const fixed = '自我介绍？好吧，我叫東嘉弥真 御奈。如果你有任何时尚方面的问题想问我，随时欢迎。'
     const rs = new ReadableStream<Uint8Array>({
       start(controller) {
+        // 明确下发情绪为 normal，便于前端立绘/语音状态同步
+        controller.enqueue(encoder.encode(sseFormat({ type: 'meta', data: JSON.stringify({ emotion: 'normal' }) })))
         controller.enqueue(encoder.encode(sseFormat({ type: 'token', data: fixed })))
         controller.enqueue(encoder.encode(sseFormat({ type: 'done', data: '' })))
         controller.close()
@@ -80,6 +87,7 @@ export async function POST(req: Request) {
   if (Array.isArray(body.history)) messages.push(...(body.history as any))
   messages.push({ role: 'user', content: userText || (body.message || '') })
 
+  // 自由对话未开启：无需访问上游模型，直接回传提示
   if (body.freechat && !allowFreechat) {
     const rs = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -96,6 +104,26 @@ export async function POST(req: Request) {
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       },
+    })
+  }
+
+  // 仅当需要请求上游模型时，再检查 API KEY
+  if (!apiKey) {
+    const rs = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseFormat({ type: 'error', data: 'Missing DEEPSEEK_API_KEY' })))
+        controller.enqueue(encoder.encode(sseFormat({ type: 'done', data: '' })))
+        controller.close()
+      },
+    })
+    return new Response(rs, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+      status: 500,
     })
   }
 

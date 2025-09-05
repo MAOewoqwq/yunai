@@ -42,6 +42,21 @@ export default function GameScene() {
   // 若上一轮已播放过 change 语音，则抑制下一轮的兜底语音（仅抑制一次）
   const suppressNextVoiceRef = useRef<boolean>(false)
 
+  // 本地识别“自我介绍”关键词（含简繁体与常见表述），用于前端兜底直返固定台词
+  function isSelfIntroInput(s: string): boolean {
+    const t = (s || '').trim()
+    if (!t) return false
+    const re: RegExp[] = [
+      /自我\s*[介绍介紹]/,
+      /介绍一下你(?:自己)?/, /介紹一下你(?:自己)?/,
+      /介绍下你(?:自己)?/, /介紹下你(?:自己)?/,
+      /介绍你自己/, /介紹你自己/,
+      /请.*自我\s*[介绍介紹]/, /請.*自我\s*[介绍介紹]/,
+      /(做|来|來)(?:一)?个?自我\s*[介绍介紹]/,
+    ]
+    return re.some((r) => r.test(t))
+  }
+
   // 仅在本轮回复内播放一次 change 语音（同步置位，避免竞态导致的重复播放）
   const playChangeOnce = () => {
     if (playedVoiceThisReplyRef.current) return
@@ -327,6 +342,8 @@ export default function GameScene() {
     if (!userText) return
     // 清空输入框（立即），并以打字机动画显示玩家输入
     setInput('')
+    // 标记：在首个 AI token 到达时播放一次“确认/应答”提示音（随机 yes/ei）
+    const playEnterOnFirstTokenRef = { value: true }
     const header = `你：${userText}\n`
     setDialogue('')
     dialogueRef.current = ''
@@ -339,7 +356,28 @@ export default function GameScene() {
         return next
       })
     }
-    // 简单关键词推断情绪并尝试切换立绘
+    // 若命中“自我介绍”关键词：前端直接返回固定台词并播放对应语音（无需访问后端）
+    if (isSelfIntroInput(userText)) {
+      // 模拟首个 token 到达时的确认音；不会占用“本轮已播语音”标志
+      try { await playVoice('', 'enter') } catch {}
+      // 清空玩家输入并显示固定台词
+      setDialogue('')
+      dialogueRef.current = ''
+      const fixed = '自我介绍？好吧，我叫東嘉弥真 御奈。如果你有任何时尚方面的问题想问我，随时欢迎。'
+      setCurrentEmotion('normal')
+      setDialogue(fixed)
+      dialogueRef.current = fixed
+      // 播放自我介绍绑定语音，并标记本轮已播，避免后续兜底重复
+      try { await playVoice(fixed, '') } catch {}
+      playedVoiceThisReplyRef.current = true
+      playedChangeVoiceRef.current = false
+      pendingLocalAngryRef.current = false
+      // 不影响下一轮的兜底逻辑
+      suppressNextVoiceRef.current = false
+      return
+    }
+
+    // 简单关键词推断情绪并尝试切换立绘（非自我介绍时才进行）
     try {
       // 使用用户本次提交的文本进行情绪推断（更可靠）
       const hint = inferEmotion(userText, affection)
@@ -397,6 +435,11 @@ export default function GameScene() {
         if (pendingLocalAngryRef.current && !playedVoiceThisReplyRef.current) {
           playChangeOnce()
         }
+        // 首个 token 到达：若本轮尚未播放任何角色语音，则播放一次确认音（enter）
+        if (playEnterOnFirstTokenRef.value && !playedVoiceThisReplyRef.current) {
+          try { playVoice('', 'enter').catch(() => {}) } catch {}
+          playEnterOnFirstTokenRef.value = false
+        }
       }
       pendingRef.text += t
       if (!raf) raf = requestAnimationFrame(flush)
@@ -448,8 +491,16 @@ export default function GameScene() {
     }
     // 一句回复只播放一次：若本轮未播过，再基于完整文本尝试一次
     if (!playedVoiceThisReplyRef.current) {
-      // 若上一轮有 angry 语音，抑制本轮的兜底播放（只抑制一轮）
-      if (suppressNextVoiceRef.current) {
+      const isSelfIntro = (dialogueRef.current || '').includes('自我介绍')
+      // 自我介绍：即使上一轮触发过 change 也强制播放一次（不被“次轮兜底抑制”影响）
+      if (isSelfIntro) {
+        playVoice(dialogueRef.current, '').finally(() => {
+          playedVoiceThisReplyRef.current = true
+          // 消耗一次抑制标记，避免影响下一轮
+          suppressNextVoiceRef.current = false
+        })
+      } else if (suppressNextVoiceRef.current) {
+        // 若上一轮有 angry 语音，抑制本轮的兜底播放（只抑制一轮）
         suppressNextVoiceRef.current = false
       } else {
         // 兜底播放不使用全局情绪，避免上一轮 'change' 残留造成误播

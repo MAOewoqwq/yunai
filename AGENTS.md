@@ -51,13 +51,29 @@
 - 开场白：可在 `public/opening-lines.json` 直接绑定 `voice` 字段（URL）。
 - 播放策略（`GameScene.tsx`）：开场白仅播一次，若被浏览器拦截则在首次交互补播；`change` 或本地推断愤怒仅播一次并抑制次轮兜底；未播则在流结束后基于完整文本兜底匹配。
 
-### 新增：Enter 确认音（用户提交时随机播放）
-- 触发时机：用户按下回车提交消息后立即播放一次确认/应答音，不影响后续 AI 语音播放。
+### 新增：Enter 确认音（与流式开始同步播放）
+- 触发时机：在收到 DeepSeek 的首个 token 时播放一次确认/应答音；若本次回复没有任何输出，则不会播放。
 - 实现位置：
   - `lib/voice.ts:16`：支持 `emotion === 'enter'`，在两条短音之间随机返回：`/audio/voice/yes.mp3`、`/audio/voice/ei.mp3`。
-  - `components/GameScene.tsx:331`：在 `sendMessage()` 清空输入后调用 `playVoice('', 'enter')`。
+  - `components/GameScene.tsx enqueue()`：首个 AI token 到达时，若尚未播放角色语音，则调用 `playVoice('', 'enter')`。
 - 资源路径：将音频文件放在 `public/audio/voice/yes.mp3` 与 `public/audio/voice/ei.mp3`。
 - 说明：`enter` 仅用于音效确认，不参与立绘切换，也不会标记“本轮已播语音”，因此后续根据情绪/文本匹配的台词语音仍会正常触发。
+
+#### Enter 确认音与流式回复的同步（实现细节）
+- 播放时点：在前端接到 SSE 的首个 token 时播放，严格与实际回复开始“同帧”同步；没有输出时不触发。
+- 不与 AI 语音“打架”：播放器采用单一 `Audio` 实例（`voiceRef`），`playVoice()` 在新声音播放前会 `pause()`、重置 `src` 与 `currentTime`，因此当流式回复触发角色语音时（如 `change` 或兜底匹配），会自然打断确认音并切换到角色语音，听感上与回复“同步”。
+- 一轮一次的 AI 语音：通过 `playedVoiceThisReplyRef`/`playedChangeVoiceRef`/`suppressNextVoiceRef` 控制本轮只触发一次角色语音；确认音不占用这些标志，不影响后续台词语音触发。
+- 流式渲染与节流：SSE 数据在前端按 `requestAnimationFrame` 合批渲染（`enqueue()` + `flush()`），避免打字机效果卡顿；后端 `app/api/ai/route.ts` 将上游 SSE 统一转为 `token|meta|done` 三种事件，并在正文开头解析情绪标签为 `meta:{ emotion }`。
+- URL 可靠性：`playVoice()` 内部仅对“最后一段文件名”做 `encodeURIComponent`，规避 `[]` 等保留字符导致的 404，在本仓库中又配合了音频文件重命名为 ASCII 安全名，双保险。
+
+### 自我介绍空内容的修复（无需 API Key）
+- 问题表现：当用户输入“请做自我介绍”等指令后，dialogue 内无返回、也无台词音频。
+- 根因：`app/api/ai/route.ts` 过去先检查 `DEEPSEEK_API_KEY`，再处理“自我介绍”特例；缺少密钥时直接 500，导致前端没有任何流式内容。
+- 修复：调整处理顺序，先匹配自我介绍与“自由对话未开启”场景并直接返回 SSE；仅在需要请求上游模型时才检查 `DEEPSEEK_API_KEY`。
+  - 关键位置：
+    - 自我介绍特例（无需上游）：`app/api/ai/route.ts` 自我介绍分支提前，并以 `sseFormat({ type: 'token' })` + `done` 直接返回固定文案。
+    - 缺密钥时的提示：仅当确需上游时返回 `type:'error'` + `done`，避免前端“无声失败”。
+  - 影响：即使本地/服务器未配置密钥，自我介绍也能稳定返回并驱动前端语音匹配（`/audio/voice/selfintroduce.mp3`）。
 
 ## 七、商城/背包与好感度
 - 组件：`components/InventoryShop.tsx`；购入消耗金币、入背包；“送出”触发好感度增减与台词，并尝试换立绘/语音；好感度限定在 0–100，带正/负飘字动画。
@@ -148,3 +164,4 @@
   - `/audio/voice/warmudon.mp3`
   - `/audio/voice/yes.mp3`
   - `/audio/voice/ei.mp3`
+

@@ -13,6 +13,16 @@ export function matchVoice(text: string, emotion?: string | null): string | null
     return angry[idx]
   }
 
+  // If emotion is 'enter' (ack on user submit), randomly pick one of two short sfx
+  if (emo === 'enter') {
+    const ack = [
+      '/audio/voice/yes.mp3',
+      '/audio/voice/ei.mp3',
+    ]
+    const idx = Math.floor(Math.random() * ack.length)
+    return ack[idx]
+  }
+
   const t = (text || '').trim()
   if (!t) return null
 
@@ -46,6 +56,11 @@ export function matchVoice(text: string, emotion?: string | null): string | null
   }
 
   // Rule: self-introduction line -> dedicated voice file
+  // 优先匹配更宽松的关键字，避免标点/空格差异导致无法命中
+  if (t.includes('自我介绍')) {
+    return '/audio/voice/selfintroduce.mp3'
+  }
+  // 精确句式（向后兼容）
   if (t.includes('自我介绍？好吧，我叫東嘉弥真 御奈。如果你有任何时尚方面的问题想问我，随时欢迎')) {
     return '/audio/voice/selfintroduce.mp3'
   }
