@@ -1,5 +1,5 @@
 "use client"
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 
 type PixelMeterProps = {
   value: number // 0-100

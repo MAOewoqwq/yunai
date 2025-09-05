@@ -1,18 +1,6 @@
-{
-  "lines1": [
-    "有点想吃狐狸乌冬了呢...",
-
-  ]
-}
-{
-  "lines2": [
-    "有什么事吗...？",
-
-  ]
-}
-{
-  "lines3": [
-    "需要一些穿搭上的建议吗？",
-
-  ]
-}
+[
+  { "text": "有点想吃狐狸乌冬了呢...", "voice": "/audio/voice/[yunai]狐狸乌冬mp3.mp3" },
+  { "text": "需要一些穿搭上的建议吗？", "voice": "/audio/voice/[yunai]如果有穿搭的问题.mp3" },
+  { "text": "...有事吗？", "voice": "/audio/voice/[yunai]有事儿吗？.mp3" },
+  { "text": "今天想试试什么感觉？清冷、俏皮，还是干练？", "voice": "/audio/voice/[yunai]今天是什么心情？.mp3" }
+]

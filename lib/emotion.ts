@@ -19,9 +19,9 @@ export function inferEmotion(text: string, affection: number): Emotion {
   for (const rule of dict) {
     if (rule.keys.test(t)) return rule.emo
   }
-  // fallback by affection threshold
-  if (affection >= 80) return 'happy'
-  if (affection <= 15) return 'angry'
+  // 当文本非空且未命中关键词时：
+  // - 默认返回 neutral，避免因低好感度导致误判为 angry
+  // - 仅在极高好感度时轻微偏向 happy
+  if (affection >= 90) return 'happy'
   return 'neutral'
 }
-

@@ -31,10 +31,33 @@ export default function GameScene() {
   const [albumOpen, setAlbumOpen] = useState<boolean>(false)
   const [currentEmotion, setCurrentEmotion] = useState<string | null>(null)
   const voiceRef = useRef<HTMLAudioElement | null>(null)
+  const playedChangeVoiceRef = useRef<boolean>(false)
+  const playedVoiceThisReplyRef = useRef<boolean>(false)
+  const pendingLocalAngryRef = useRef<boolean>(false)
+  // 确保开场白语音在每次刷新/登录后只播放一次（避免因严格模式重复 effect 而二次触发）
+  const openingVoicePlayedRef = useRef<boolean>(false)
+  const openingVoiceCleanupRef = useRef<(() => void) | null>(null)
+  // 固定一次的开场白选择（文本 + 绑定语音 URL），避免严格模式重复初始化导致文本/语音不一致
+  const openingSelectionRef = useRef<{ text: string; voice?: string } | null>(null)
+  // 若上一轮已播放过 change 语音，则抑制下一轮的兜底语音（仅抑制一次）
+  const suppressNextVoiceRef = useRef<boolean>(false)
 
-  function playVoice(text: string, emo?: string | null) {
+  // 仅在本轮回复内播放一次 change 语音（同步置位，避免竞态导致的重复播放）
+  const playChangeOnce = () => {
+    if (playedVoiceThisReplyRef.current) return
+    playedVoiceThisReplyRef.current = true
+    playedChangeVoiceRef.current = true
+    pendingLocalAngryRef.current = false
+    // 标记下一轮不再播放兜底语音（只抑制一轮）
+    suppressNextVoiceRef.current = true
+    try {
+      playVoice('', 'change').catch(() => {})
+    } catch {}
+  }
+
+  function playVoice(text: string, emo?: string | null): Promise<boolean> {
     const url = matchVoice(text, emo ?? currentEmotion ?? undefined)
-    if (!url) return
+    if (!url) return Promise.resolve(false)
     let a = voiceRef.current
     if (!a) {
       a = new Audio()
@@ -45,7 +68,23 @@ export default function GameScene() {
     a.src = url
     a.currentTime = 0
     a.volume = 1.0
-    a.play().catch(() => {})
+    return a.play().then(() => true).catch(() => false)
+  }
+
+  // 直接按 URL 播放语音（用于开场白的显式绑定 voice）
+  function playVoiceUrl(url?: string | null): Promise<boolean> {
+    if (!url) return Promise.resolve(false)
+    let a = voiceRef.current
+    if (!a) {
+      a = new Audio()
+      a.preload = 'auto'
+      voiceRef.current = a
+    }
+    try { a.pause() } catch {}
+    a.src = url
+    a.currentTime = 0
+    a.volume = 1.0
+    return a.play().then(() => true).catch(() => false)
   }
 
   const [sprites, setSprites] = useState<Array<{ url: string; char?: string; emotion?: string }>>([])
@@ -134,7 +173,7 @@ export default function GameScene() {
     // 初始化开场台词：优先从 /opening-lines.json 读取，否则回退到默认常量
     ;(async () => {
       try {
-        let lines: string[] = []
+        let lines: any[] = []
         try {
           const r = await fetch('/opening-lines.json', { cache: 'no-store' })
           if (r.ok) {
@@ -144,11 +183,57 @@ export default function GameScene() {
           }
         } catch {}
         if (!lines?.length) lines = DEFAULT_OPENING_LINES
-        // 只展示 1 句随机开场白
-        const idx = Math.floor(Math.random() * lines.length)
-        const initialText = lines[idx] || ''
+        // 兼容两种格式：字符串数组 或 对象数组({ text, voice })
+        if (!openingSelectionRef.current) {
+          const pick = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)]
+          const item = pick(lines)
+          const text = typeof item === 'string' ? item : (item?.text || '')
+          const voice: string | undefined = typeof item === 'object' && item?.voice ? String(item.voice) : undefined
+          openingSelectionRef.current = { text, voice }
+        }
+        const initialText = openingSelectionRef.current.text
+        const initialVoiceUrl = openingSelectionRef.current.voice
         setDialogue(initialText)
         dialogueRef.current = initialText
+        // 尝试自动播放开场语音；若受浏览器策略限制则在首次交互时播放
+        try {
+          // 若已播放过（严格模式下第二次执行），直接跳过
+          if (!openingVoicePlayedRef.current) {
+            // 若提供了显式 voice，则直接按 URL 播放；否则按文本匹配
+            const played = initialVoiceUrl
+              ? await playVoiceUrl(initialVoiceUrl)
+              : await playVoice(initialText, '')
+            if (played) {
+              openingVoicePlayedRef.current = true
+              // 如有上一次的事件清理器，确保清理
+              openingVoiceCleanupRef.current?.()
+              openingVoiceCleanupRef.current = null
+            } else {
+              // 回退到首次用户交互时播放，且加保护避免多次触发
+              const onFirstInteract = async () => {
+                if (openingVoicePlayedRef.current) return
+                openingVoicePlayedRef.current = true
+                // 首次交互回退：优先用显式 voice，其次文本匹配
+                try {
+                  const sel = openingSelectionRef.current
+                  if (sel?.voice) await playVoiceUrl(sel.voice)
+                  else await playVoice(sel?.text || initialText, '')
+                } catch {}
+                cleanup()
+              }
+              const cleanup = () => {
+                window.removeEventListener('pointerdown', onFirstInteract)
+                window.removeEventListener('keydown', onFirstInteract)
+                window.removeEventListener('touchstart', onFirstInteract)
+              }
+              // 记录清理器，便于严格模式或卸载时移除多余监听
+              openingVoiceCleanupRef.current = cleanup
+              window.addEventListener('pointerdown', onFirstInteract, { once: true })
+              window.addEventListener('keydown', onFirstInteract, { once: true })
+              window.addEventListener('touchstart', onFirstInteract, { once: true })
+            }
+          }
+        } catch {}
       } catch {}
     })()
 
@@ -161,7 +246,12 @@ export default function GameScene() {
     }
     updateStage()
     window.addEventListener('resize', updateStage)
-    return () => window.removeEventListener('resize', updateStage)
+    return () => {
+      window.removeEventListener('resize', updateStage)
+      // 卸载时清理（防止多次注册导致的二次播放）
+      try { openingVoiceCleanupRef.current?.() } catch {}
+      openingVoiceCleanupRef.current = null
+    }
   }, [])
 
   // 预加载 HUD 的“背包/商城”图片按钮（本地覆盖优先，否则从 items 取一个匹配的）
@@ -229,14 +319,22 @@ export default function GameScene() {
     }
     // 简单关键词推断情绪并尝试切换立绘
     try {
-      const hint = inferEmotion(input, affection)
-      if (hint && sprites.length > 0) {
-        const cur = sprites.find((s) => s.url === spriteUrl)
-        let candidate = sprites.find(
-          (s) => s.emotion?.toLowerCase() === hint && s.char && cur?.char && s.char === cur.char,
-        )
-        if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === hint)
-        if (candidate) setSpriteUrl(candidate.url)
+      // 使用用户本次提交的文本进行情绪推断（更可靠）
+      const hint = inferEmotion(userText, affection)
+      // 本地最佳实践兜底：angry -> change 立绘，但语音延迟到流开始（首个 AI token 到达）再播，避免过早
+      if (hint === 'angry') {
+        const target = 'change'
+        // 优先切换同角色的 change 立绘
+        if (sprites.length > 0) {
+          const cur = sprites.find((s) => s.url === spriteUrl)
+          let candidate = sprites.find(
+            (s) => s.emotion?.toLowerCase() === target && s.char && cur?.char && s.char === cur.char,
+          )
+          if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === target)
+          if (candidate) setSpriteUrl(candidate.url)
+        }
+        setCurrentEmotion(target)
+        pendingLocalAngryRef.current = true
       }
     } catch {}
     const res = await fetch('/api/ai', {
@@ -252,6 +350,8 @@ export default function GameScene() {
     const pendingRef = { text: '' }
     let raf = 0 as any
     let assistantCleared = false
+    playedChangeVoiceRef.current = false
+    playedVoiceThisReplyRef.current = false
     const flush = () => {
       if (!pendingRef.text) return
       const chunk = pendingRef.text
@@ -271,6 +371,10 @@ export default function GameScene() {
         setDialogue('')
         dialogueRef.current = ''
         assistantCleared = true
+        // 本地 angry 兜底：在流真正开始时播放一次，保证与回复同步；且仅本轮一次
+        if (pendingLocalAngryRef.current && !playedVoiceThisReplyRef.current) {
+          playChangeOnce()
+        }
       }
       pendingRef.text += t
       if (!raf) raf = requestAnimationFrame(flush)
@@ -302,6 +406,10 @@ export default function GameScene() {
               )
               if (!candidate) candidate = sprites.find((s) => s.emotion?.toLowerCase() === targetEmotion)
               if (candidate) setSpriteUrl(candidate.url)
+              // 若模型标注 change，且本轮未播过，则立即播放一次并标记
+              if (targetEmotion === 'change' && !playedVoiceThisReplyRef.current) {
+                playChangeOnce()
+              }
             }
           }
         } catch {}
@@ -316,8 +424,18 @@ export default function GameScene() {
       })
       pendingRef.text = ''
     }
-    // Attempt voice playback for the final assistant line
-    playVoice(dialogueRef.current, currentEmotion)
+    // 一句回复只播放一次：若本轮未播过，再基于完整文本尝试一次
+    if (!playedVoiceThisReplyRef.current) {
+      // 若上一轮有 angry 语音，抑制本轮的兜底播放（只抑制一轮）
+      if (suppressNextVoiceRef.current) {
+        suppressNextVoiceRef.current = false
+      } else {
+        // 兜底播放不使用全局情绪，避免上一轮 'change' 残留造成误播
+        playVoice(dialogueRef.current, '').finally(() => {
+          playedVoiceThisReplyRef.current = true
+        })
+      }
+    }
     // 输入已在发送时清空，这里无需重复
   }
 
@@ -401,7 +519,7 @@ export default function GameScene() {
               collapsible
               initialCollapsed
               // 使用你的音符图标
-              iconSrc="/uploads/avatars/music.png"
+              iconSrc="/uploads/avatars/musicmina.png"
             />
           </div>
         </div>

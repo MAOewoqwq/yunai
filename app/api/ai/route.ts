@@ -52,6 +52,27 @@ export async function POST(req: Request) {
 
   const { allow: allowFreechat, pure: userText } = parseFreechat(body.message || '')
 
+  // Special rule: if user mentions self-introduction, output ONLY the fixed line
+  const selfIntroRegex = /(自我\s*介绍|介绍一下你|介绍下你|请.*自我介绍|做个?自我介绍)/
+  if (selfIntroRegex.test(userText || '')) {
+    const fixed = '自我介绍？好吧，我叫東嘉弥真 御奈。如果你有任何时尚方面的问题想问我，随时欢迎。'
+    const rs = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseFormat({ type: 'token', data: fixed })))
+        controller.enqueue(encoder.encode(sseFormat({ type: 'done', data: '' })))
+        controller.close()
+      },
+    })
+    return new Response(rs, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    })
+  }
+
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = []
   // 固定人设：如未传入 systemOverride，则注入默认人设
   const sys = (body.systemOverride && body.systemOverride.trim()) || DEFAULT_SYSTEM_PERSONA

@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import PixelPanel from './PixelPanel'
 import PixelButton from './PixelButton'
 import PixelMeter from './PixelMeter'
@@ -92,7 +92,7 @@ export default function PixelAudioBar({
     else el.pause()
   }
 
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seek = (e: MouseEvent<HTMLDivElement>) => {
     const el = audioRef.current
     if (!el || duration <= 0) return
     const rect = (e.target as HTMLDivElement).getBoundingClientRect()
@@ -141,7 +141,7 @@ export default function PixelAudioBar({
             'w-[62%]', 'h-[62%]', 'pointer-events-none'
           ].join(' ')}>
             <img
-              src={iconSrc || '/uploads/avatars/music.png'}
+              src={iconSrc || '/uploads/avatars/musicmina.png'}
               alt={iconAlt}
               className={[
                 'w-full', 'h-full', 'rounded-full', 'object-cover', 'block', rotatingImgCls
@@ -183,7 +183,7 @@ export default function PixelAudioBar({
             'w-[62%]', 'h-[62%]', 'pointer-events-none'
           ].join(' ')}>
             <img
-              src={iconSrc || '/uploads/avatars/music.png'}
+              src={iconSrc || '/uploads/avatars/musicmina.png'}
               alt={iconAlt}
               className={[
                 'w-full', 'h-full', 'rounded-full', 'object-cover', 'block', rotatingImgCls

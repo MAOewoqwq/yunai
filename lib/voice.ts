@@ -1,10 +1,54 @@
 // Simple voice mapping: map specific lines (and optional emotion) to audio files under /public/audio/voice
 
 export function matchVoice(text: string, emotion?: string | null): string | null {
+  const emo = (emotion || '').toLowerCase()
+
+  // If emotion is 'change', randomly pick one of the two angry lines
+  if (emo === 'change') {
+    const angry = [
+      '/audio/voice/[yunai]（生气）什么！.mp3',
+      '/audio/voice/[yunai]（生气）开什么玩笑.mp3',
+    ]
+    const idx = Math.floor(Math.random() * angry.length)
+    return angry[idx]
+  }
+
   const t = (text || '').trim()
   if (!t) return null
 
-  const emo = (emotion || '').toLowerCase()
+  // Opening lines -> specific voice files
+  if (t.includes('有点想吃狐狸乌冬了呢')) {
+    return '/audio/voice/[yunai]狐狸乌冬mp3.mp3'
+  }
+  if (t.includes('需要一些穿搭上的建议吗')) {
+    return '/audio/voice/[yunai]如果有穿搭的问题.mp3'
+  }
+  if (t.includes('有事吗')) {
+    return '/audio/voice/[yunai]有事儿吗？.mp3'
+  }
+  if (t.includes('今天想试试什么感觉')) {
+    return '/audio/voice/[yunai]今天是什么心情？.mp3'
+  }
+
+  // Relationship/affection positive sentiments -> happy talking voice
+  if (
+    t.includes('和你关系变好了') ||
+    t.includes('关系变好了') ||
+    t.includes('喜欢你') ||
+    t.includes('喜欢上你') ||
+    t.includes('成为朋友') ||
+    t.includes('做朋友') ||
+    t.includes('我们是朋友') ||
+    t.includes('成为了朋友') ||
+    t.includes('更亲近')
+  ) {
+    return '/audio/voice/[yunai]和你说话很开心.mp3'
+  }
+
+  // Rule: self-introduction line -> dedicated voice file
+  if (t.includes('自我介绍？好吧，我叫東嘉弥真 御奈。如果你有任何时尚方面的问题想问我，随时欢迎')) {
+    return '/audio/voice/[yunai]自己紹介mp3.mp3'
+  }
 
   // Rule: flowers line -> voice file
   // Use includes to be tolerant of trailing punctuation differences
