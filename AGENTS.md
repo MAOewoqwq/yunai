@@ -47,9 +47,17 @@
 - 提示：部署在子路径或独立域/CDN 时设置 `.env.local` 的 `NEXT_PUBLIC_BASE_URL`；前端对音频仅对“最后一段文件名”做 `encodeURIComponent`，避免 `[]`、空格等字符导致 404。
 
 ## 六、语音与情绪联动
-- 语音映射：`lib/voice.ts` 基于文本/情绪选择 `/public/audio/voice/*.mp3`；`change` 时在两段“生气”语音中随机。
+- 语音映射：`lib/voice.ts` 基于文本/情绪选择 `/public/audio/voice/*.mp3`；`change` 时在两段“生气”语音中随机；新增 `enter` 确认音随机播放。
 - 开场白：可在 `public/opening-lines.json` 直接绑定 `voice` 字段（URL）。
 - 播放策略（`GameScene.tsx`）：开场白仅播一次，若被浏览器拦截则在首次交互补播；`change` 或本地推断愤怒仅播一次并抑制次轮兜底；未播则在流结束后基于完整文本兜底匹配。
+
+### 新增：Enter 确认音（用户提交时随机播放）
+- 触发时机：用户按下回车提交消息后立即播放一次确认/应答音，不影响后续 AI 语音播放。
+- 实现位置：
+  - `lib/voice.ts:16`：支持 `emotion === 'enter'`，在两条短音之间随机返回：`/audio/voice/yes.mp3`、`/audio/voice/ei.mp3`。
+  - `components/GameScene.tsx:331`：在 `sendMessage()` 清空输入后调用 `playVoice('', 'enter')`。
+- 资源路径：将音频文件放在 `public/audio/voice/yes.mp3` 与 `public/audio/voice/ei.mp3`。
+- 说明：`enter` 仅用于音效确认，不参与立绘切换，也不会标记“本轮已播语音”，因此后续根据情绪/文本匹配的台词语音仍会正常触发。
 
 ## 七、商城/背包与好感度
 - 组件：`components/InventoryShop.tsx`；购入消耗金币、入背包；“送出”触发好感度增减与台词，并尝试换立绘/语音；好感度限定在 0–100，带正/负飘字动画。
@@ -137,6 +145,6 @@
   - `/audio/voice/dislike1.mp3`
   - `/audio/voice/selfintroduce.mp3`
   - `/audio/voice/flowerlike.mp3`
-  -`/audio/voice/warmudon.mp3`
-  -`/audio/voice/yes.mp3`
-  -`/audio/voice/ei.mp3`
+  - `/audio/voice/warmudon.mp3`
+  - `/audio/voice/yes.mp3`
+  - `/audio/voice/ei.mp3`
