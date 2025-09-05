@@ -30,6 +30,8 @@ export default async function HomePage() {
       const dir = join(process.cwd(), 'public', 'uploads', 'bg')
       const files = readdirSync(dir, { withFileTypes: true })
         .filter((f) => f.isFile())
+        // ignore macOS AppleDouble/hidden files
+        .filter((f) => !f.name.startsWith('._') && !f.name.startsWith('.') && f.name !== '.DS_Store')
         .map((f) => f.name)
         .filter((n) => ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.JPG', '.PNG', '.JPEG', '.WEBP', '.GIF'].includes(extname(n)))
       const assets: Asset[] = files.map((n) => ({ url: `/uploads/bg/${n}`, name: n }))

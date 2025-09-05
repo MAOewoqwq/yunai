@@ -4,6 +4,9 @@ import type { Metadata, Viewport } from 'next'
 export const metadata: Metadata = {
   title: 'Galgame Web',
   description: 'Single-player VN with AI dialogue',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export const viewport: Viewport = {

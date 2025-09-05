@@ -58,6 +58,17 @@ export default function GameScene() {
   function playVoice(text: string, emo?: string | null): Promise<boolean> {
     const url = matchVoice(text, emo ?? currentEmotion ?? undefined)
     if (!url) return Promise.resolve(false)
+    const encodeLastPathSegment = (u: string) => {
+      try {
+        const i = u.lastIndexOf('/')
+        if (i < 0) return encodeURIComponent(u)
+        const base = u.slice(0, i + 1)
+        const name = u.slice(i + 1)
+        return base + encodeURIComponent(name)
+      } catch {
+        return u
+      }
+    }
     let a = voiceRef.current
     if (!a) {
       a = new Audio()
@@ -65,7 +76,7 @@ export default function GameScene() {
       voiceRef.current = a
     }
     try { a.pause() } catch {}
-    a.src = url
+    a.src = encodeLastPathSegment(url)
     a.currentTime = 0
     a.volume = 1.0
     return a.play().then(() => true).catch(() => false)
@@ -74,6 +85,17 @@ export default function GameScene() {
   // 直接按 URL 播放语音（用于开场白的显式绑定 voice）
   function playVoiceUrl(url?: string | null): Promise<boolean> {
     if (!url) return Promise.resolve(false)
+    const encodeLastPathSegment = (u: string) => {
+      try {
+        const i = u.lastIndexOf('/')
+        if (i < 0) return encodeURIComponent(u)
+        const base = u.slice(0, i + 1)
+        const name = u.slice(i + 1)
+        return base + encodeURIComponent(name)
+      } catch {
+        return u
+      }
+    }
     let a = voiceRef.current
     if (!a) {
       a = new Audio()
@@ -81,7 +103,7 @@ export default function GameScene() {
       voiceRef.current = a
     }
     try { a.pause() } catch {}
-    a.src = url
+    a.src = encodeLastPathSegment(url)
     a.currentTime = 0
     a.volume = 1.0
     return a.play().then(() => true).catch(() => false)

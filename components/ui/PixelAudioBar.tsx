@@ -95,7 +95,8 @@ export default function PixelAudioBar({
   const seek = (e: MouseEvent<HTMLDivElement>) => {
     const el = audioRef.current
     if (!el || duration <= 0) return
-    const rect = (e.target as HTMLDivElement).getBoundingClientRect()
+    // Use currentTarget to ensure we measure the bar container, not an inner child
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const x = e.clientX - rect.left
     const r = Math.max(0, Math.min(1, x / rect.width))
     el.currentTime = r * duration

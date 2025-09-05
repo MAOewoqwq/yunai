@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
       const files = readdirSync(target, { withFileTypes: true })
       for (const f of files) {
         if (!f.isFile()) continue
+        // ignore macOS AppleDouble/hidden files
+        if (f.name.startsWith('._') || f.name.startsWith('.') || f.name === '.DS_Store') continue
         if (!isImage(f.name)) continue
         result.push({
           url: `/uploads/${type}/${f.name}`,
@@ -37,6 +39,8 @@ export async function GET(req: NextRequest) {
       const items = readdirSync(target, { withFileTypes: true })
       // allow both nested by char and flat files
       for (const it of items) {
+        // skip hidden/appledouble entries at top level too
+        if (it.name.startsWith('._') || it.name.startsWith('.') || it.name === '.DS_Store') continue
         const p = join(target, it.name)
         if (it.isDirectory()) {
           const charId = it.name
@@ -44,6 +48,7 @@ export async function GET(req: NextRequest) {
           const imgs = readdirSync(p, { withFileTypes: true })
           for (const img of imgs) {
             if (!img.isFile()) continue
+            if (img.name.startsWith('._') || img.name.startsWith('.') || img.name === '.DS_Store') continue
             if (!isImage(img.name)) continue
             result.push({
               url: `/uploads/sprites/${charId}/${img.name}`,
@@ -55,6 +60,7 @@ export async function GET(req: NextRequest) {
           }
         } else if (it.isFile()) {
           // flat: character inferred from filename. Support separators: '-', '_', or space
+          if (it.name.startsWith('._') || it.name.startsWith('.') || it.name === '.DS_Store') continue
           if (!isImage(it.name)) continue
           const baseNameRaw = basename(it.name, extname(it.name))
           const norm = baseNameRaw.trim()
