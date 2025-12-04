@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { join, extname, basename } from 'node:path'
-import { readdirSync } from 'node:fs'
+import { readdirSync, existsSync } from 'node:fs'
+import { env } from '@/lib/env'
 
 export const runtime = 'nodejs'
 
@@ -16,11 +17,16 @@ export async function GET(req: NextRequest) {
   const type = (searchParams.get('type') || 'bg') as AssetType
   const charFilter = searchParams.get('char') || undefined
 
-  const base = join(process.cwd(), 'public', 'uploads')
+  // Use UPLOAD_DIR for consistency with upload API and Docker layout
+  const base = env.UPLOAD_DIR
   const target = join(base, type)
 
   try {
     const result: any[] = []
+
+    if (!existsSync(target)) {
+      return Response.json({ files: [] })
+    }
 
     if (type === 'bg' || type === 'avatars' || type === 'items' || type === 'photos') {
       const files = readdirSync(target, { withFileTypes: true })

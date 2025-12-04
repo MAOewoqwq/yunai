@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { join, extname } from 'node:path'
 import { readdirSync } from 'node:fs'
+import { env } from '@/lib/env'
 
 type Asset = { url: string; name?: string }
 
@@ -24,10 +25,10 @@ export default async function HomePage() {
       bgUrl = prefer(files)
     }
   } catch {}
-  // 兜底：直接读取 public/uploads/bg 下的第一张图片
+  // 兜底：直接读取 UPLOAD_DIR/bg 下的第一张图片（与上传/枚举保持一致）
   if (!bgUrl) {
     try {
-      const dir = join(process.cwd(), 'public', 'uploads', 'bg')
+      const dir = join(env.UPLOAD_DIR, 'bg')
       const files = readdirSync(dir, { withFileTypes: true })
         .filter((f) => f.isFile())
         // ignore macOS AppleDouble/hidden files
