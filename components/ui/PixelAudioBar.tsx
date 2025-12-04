@@ -120,7 +120,7 @@ export default function PixelAudioBar({
   const toggleBtnSizeCls = size === 'md' ? 'w-8 h-8' : 'w-7 h-7'
   const toggleBtnOverride = ['p-0', 'relative', toggleBtnSizeCls].join(' ')
   const rotatingImgCls = isPlaying ? 'spin-slow' : ''
-  const frameURL = frameSrc ?? '/uploads/avatars/music-bg_副本.PNG'
+  const frameURL = frameSrc ?? '/uploads/avatars/music-bg-copy.png'
   const scaleCls = 'scale-150' // 在之前基础上放大 1.5x（即再放大 30%）
 
   if (collapsible && collapsed) {
