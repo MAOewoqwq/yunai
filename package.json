@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-assets-manifest.js && next build",
     "start": "next start",
     "pack:standalone": "scripts/pack-standalone.sh",
     "typecheck": "tsc --noEmit"

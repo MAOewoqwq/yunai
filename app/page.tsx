@@ -1,37 +1,41 @@
 import Link from 'next/link'
 import { join, extname } from 'node:path'
-import { readdirSync } from 'node:fs'
+import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { env } from '@/lib/env'
 
 type Asset = { url: string; name?: string }
 
 export default async function HomePage() {
-  // 尝试读取已上传的背景图（public/uploads/bg），取第一张作为首页背景
   let bgUrl: string | undefined
   const prefer = (list: Asset[]): string | undefined => {
     if (!Array.isArray(list) || list.length === 0) return undefined
-    // 优先匹配文件名包含“首页”/home/index 的图片
     const preferred = list.find((a) => (a.name || a.url).toLowerCase().includes('home')
       || (a.name || a.url).toLowerCase().includes('index')
       || (a.name || a.url).includes('首页'))
     return (preferred?.url) || list[0]?.url
   }
 
-  try {
-    const r = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/assets?type=bg`, { cache: 'no-store' })
-    if (r.ok) {
-      const j = await r.json()
-      const files: Asset[] = Array.isArray(j.files) ? j.files : []
-      bgUrl = prefer(files)
+  // 优先从 manifest 读取（Vercel 部署）
+  const manifestPaths = [
+    join(process.cwd(), 'public', 'assets-manifest.json'),
+    join(process.cwd(), '.next', 'standalone', 'public', 'assets-manifest.json'),
+  ]
+  for (const manifestPath of manifestPaths) {
+    if (!bgUrl && existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+        const files: Asset[] = manifest.assets?.bg || []
+        bgUrl = prefer(files)
+      } catch {}
     }
-  } catch {}
-  // 兜底：直接读取 UPLOAD_DIR/bg 下的第一张图片（与上传/枚举保持一致）
+  }
+
+  // 回退：动态扫描目录（本地开发）
   if (!bgUrl) {
     try {
       const dir = join(env.UPLOAD_DIR, 'bg')
       const files = readdirSync(dir, { withFileTypes: true })
         .filter((f) => f.isFile())
-        // ignore macOS AppleDouble/hidden files
         .filter((f) => !f.name.startsWith('._') && !f.name.startsWith('.') && f.name !== '.DS_Store')
         .map((f) => f.name)
         .filter((n) => ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.JPG', '.PNG', '.JPEG', '.WEBP', '.GIF'].includes(extname(n)))

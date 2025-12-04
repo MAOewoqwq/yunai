@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2025-12-04T12:02:39.529Z",
+  "assets": {
+    "bg": [
+      {
+        "url": "/uploads/bg/background.jpg",
+        "name": "background.jpg",
+        "type": "bg"
+      },
+      {
+        "url": "/uploads/bg/home-background.png",
+        "name": "home-background.png",
+        "type": "bg"
+      }
+    ],
+    "sprites": [
+      {
+        "url": "/uploads/sprites/yunai-change.png",
+        "name": "yunai-change.png",
+        "char": "yunai",
+        "emotion": "change",
+        "type": "sprites"
+      },
+      {
+        "url": "/uploads/sprites/yunai-normal.png",
+        "name": "yunai-normal.png",
+        "char": "yunai",
+        "emotion": "normal",
+        "type": "sprites"
+      }
+    ],
+    "avatars": [
+      {
+        "url": "/uploads/avatars/iconmina.PNG",
+        "name": "iconmina.PNG",
+        "type": "avatars"
+      },
+      {
+        "url": "/uploads/avatars/music-bg-copy.png",
+        "name": "music-bg-copy.png",
+        "type": "avatars"
+      },
+      {
+        "url": "/uploads/avatars/musicmina.png",
+        "name": "musicmina.png",
+        "type": "avatars"
+      }
+    ],
+    "items": [
+      {
+        "url": "/uploads/items/album0.PNG",
+        "name": "album0.PNG",
+        "type": "items"
+      },
+      {
+        "url": "/uploads/items/bag0.PNG",
+        "name": "bag0.PNG",
+        "type": "items"
+      },
+      {
+        "url": "/uploads/items/gift.shengjiang.PNG",
+        "name": "gift.shengjiang.PNG",
+        "type": "items"
+      },
+      {
+        "url": "/uploads/items/gift_cake.PNG",
+        "name": "gift_cake.PNG",
+        "type": "items"
+      },
+      {
+        "url": "/uploads/items/gift_flower.PNG",
+        "name": "gift_flower.PNG",
+        "type": "items"
+      },
+      {
+        "url": "/uploads/items/gift_udon.PNG",
+        "name": "gift_udon.PNG",
+        "type": "items"
+      }
+    ],
+    "photos": [
+      {
+        "url": "/uploads/photos/camera.jpg",
+        "name": "camera.jpg",
+        "type": "photos"
+      },
+      {
+        "url": "/uploads/photos/let-me-see.jpg",
+        "name": "let-me-see.jpg",
+        "type": "photos"
+      },
+      {
+        "url": "/uploads/photos/makeup.jpg",
+        "name": "makeup.jpg",
+        "type": "photos"
+      }
+    ]
+  }
+}
